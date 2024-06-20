@@ -10,6 +10,21 @@
 
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------
+ * Modified by: Geordy Jomon gj82@njit.edu
+ * This fix is modified to add the Tjatjopoulos potential for cylinders
+ * The equations are form 'Extension of the Steele 10-4-3 potential' by
+ * Siderius 2011. Eq.5
+------------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------
+ 
+ * TODO:
+ * check if r' = R - r
+ * Try using region->contact[m].radius for R
+ * check everything
+ * compile and run
+ 
+ ------------------------------------------------------------------------ */
 
 #include "fix_wall_region.h"
 
@@ -22,16 +37,19 @@
 #include "respa.h"
 #include "update.h"
 
+#include "gsl/gsl_sf_hyperg.h"
+
 #include <cmath>
 #include <cstring>
 
 using namespace LAMMPS_NS;
 using namespace FixConst;
 using MathConst::MY_2PI;
+using MathConst::MY_PI;
 using MathConst::MY_SQRT2;
 using MathSpecial::powint;
 
-enum { LJ93, LJ126, LJ1043, COLLOID, HARMONIC, MORSE };
+enum { LJ93, LJ126, LJ1043, COLLOID, HARMONIC, MORSE , TJATJOPOULOS};
 
 /* ---------------------------------------------------------------------- */
 
@@ -69,6 +87,8 @@ FixWallRegion::FixWallRegion(LAMMPS *lmp, int narg, char **arg) :
     style = HARMONIC;
   else if (strcmp(arg[4], "morse") == 0)
     style = MORSE;
+  else if (strcmp(arg[4], "tjatjopoulos") == 0)
+    style = TJATJOPOULOS;
   else
     error->all(FLERR, "Unknown fix wall/region style {}", arg[4]);
 
@@ -81,6 +101,13 @@ FixWallRegion::FixWallRegion(LAMMPS *lmp, int narg, char **arg) :
     alpha = utils::numeric(FLERR, arg[6], false, lmp);
     sigma = utils::numeric(FLERR, arg[7], false, lmp);
     cutoff = utils::numeric(FLERR, arg[8], false, lmp);
+
+  } else if (style == TJATJOPOULOS) {
+    if (narg != 8) error->all(FLERR, "Illegal fix wall/region tjatjopoulos command, incorrect number of arguments.");
+ 
+    epsilon = utils::numeric(FLERR, arg[5], false, lmp);
+    sigma = utils::numeric(FLERR, arg[6], false, lmp);
+    rho_A = utils::numeric(FLERR, arg[7], false, lmp);
 
   } else {
     if (narg != 8) error->all(FLERR, "Illegal fix wall/region command");
@@ -187,6 +214,33 @@ void FixWallRegion::init()
     double r2inv = rinv * rinv;
     double r4inv = r2inv * r2inv;
     offset = coeff3 * r4inv * r4inv * rinv - coeff4 * r2inv * rinv;
+  } else if (style == TJATJOPOULOS) {
+    //Getting the radius of the cylinderical region, if the box is rectangular,
+    //then the diameter of the circular cross section will be equal to the side
+    //length in the same plane. to get the radius of the circular cross section
+    //it is imperitive that the cross section of the box is a square in atleast
+    //one pane- yz, yx or zx.
+    if (domain->yprd_half == domain->zprd_half) {
+      R = domain->yprd_half;
+    } else if (domain->yprd_half == domain->xprd_half) {
+      R = domain->yprd_half;
+    } else if (domain->zprd_half == domain->xprd_half) {
+      R = domain->zprd_half;
+    } else {
+      error->all(FLERR, "fix wall/region Tjatjopoulos:  {} should have uniform dimensions in atleast one pane x:{}, y:{}, z:{}", idregion, domain->xprd_half, domain->yprd_half, domain->zprd_half);
+    }
+    // Calculating the coefficients such that only the terms that depend on 'r'
+    // are computed for each atom warning
+    double sigma_R = sigma / R;
+    tjat_coeff = 2 * MY_PI * rho_A * sigma * sigma * epsilon;
+
+    psi6_coeff = psi6_gc * powint(sigma_R, 10); // 10 and 4 from 2n-2
+    psi3_coeff = psi3_gc * powint(sigma_R, 4);
+    //force coefficients calculated using Wolfram
+    psi6_der1 = 40.5 * powint(R,18);
+    psi6_der2 = 0.493827 * R * R;
+    psi3_der1 = 4.5 * powint(R,6);
+    psi3_der2 = 8 * powint(R,8);
   }
 
   if (utils::strmatch(update->integrate_style, "^respa")) {
@@ -277,6 +331,8 @@ void FixWallRegion::post_force(int vflag)
           morse(region->contact[m].r);
         else if (style == COLLOID)
           colloid(region->contact[m].r, radius[i]);
+        else if (style == TJATJOPOULOS)
+          tjatjopoulos(region->contact[m].r);
         else
           harmonic(region->contact[m].r);
 
@@ -457,4 +513,38 @@ void FixWallRegion::harmonic(double r)
   double dr = cutoff - r;
   fwall = 2.0 * epsilon * dr;
   eng = epsilon * dr * dr;
+}
+
+/* ----------------------------------------------------------------------
+   Tjatjopoulos cylinderical interaction for particle with wall
+   compute eng and fwall = magnitude of wall force All equations
+   are from 'Extension of the Steele 10-4-3 potential' Siderius 2011
+  gsl_sf_hyperg_2F1 is the gauss hypergeometric function.
+  This potential considers the distance of the particle from the center
+  of the cylinder rp = R - r where r is the distance form the surface.
+------------------------------------------------------------------------- */
+
+void FixWallRegion::tjatjopoulos(double r)
+{
+  double rp = R - r;
+  double rp_R = rp / R;
+  double rp2_R2 = rp_R * rp_R; 
+  double omrp_R2 = 1 - rp2_R2;
+
+  double psi6_2F1 = gsl_sf_hyperg_2F1(-4.5,-4.5,1,rp2_R2);
+  double psi3_2F1 = gsl_sf_hyperg_2F1(-1.5, -1.5, 1, rp2_R2);
+  double psi6 = psi6_coeff * powint(omrp_R2, -10) * psi6_2F1;
+  double psi3 = psi3_coeff * powint(omrp_R2, -4) * psi3_2F1;
+
+  eng = tjat_coeff * (psi6 - psi3);
+
+  double rp2m_R2 = rp * rp - R * R;
+  double psi6_der = psi6_coeff * (((rp * psi6_der1) *
+    ((rp2m_R2 * gsl_sf_hyperg_2F1(-3.5,-3.5,2,rp2_R2)) - (psi6_der2 * psi6_2F1)))
+    / powint(rp2m_R2, 11));
+  double psi3_der = psi3_coeff * (((rp * psi3_der1 * gsl_sf_hyperg_2F1(-0.5, -0.5, 2, rp2_R2))
+    - (rp * psi3_der2 * psi3_2F1))
+    / powint(rp2m_R2, 5));
+
+  fwall = - tjat_coeff * (psi6_der - psi3_der);
 }

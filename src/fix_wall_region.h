@@ -50,6 +50,17 @@ class FixWallRegion : public Fix {
 
   double coeff1, coeff2, coeff3, coeff4, offset;
   double coeff5, coeff6, coeff7;
+
+  // These are 4 * sqrt(pi) * gamma(n-(1/2))/gamma(n), gamma is the gamma function,
+  // n is the coefficient 6 and 3 respectively. They were calculated
+  // using python scipy.special.gamma()
+  static constexpr double psi6_gc = 3.0925052683774523;
+  static constexpr double psi3_gc = 4.71238898038469;
+  double rho_A;
+  double R; //radius
+  double tjat_coeff, psi6_coeff, psi3_coeff;
+  double psi6_der1, psi6_der2, psi3_der1, psi3_der2;
+
   double eng, fwall;
 
   void lj93(double);
@@ -58,6 +69,7 @@ class FixWallRegion : public Fix {
   void morse(double);
   void colloid(double, double);
   void harmonic(double);
+  void tjatjopoulos(double);
 };
 
 }    // namespace LAMMPS_NS
