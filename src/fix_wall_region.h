@@ -53,7 +53,7 @@ class FixWallRegion : public Fix {
 
   // These are 4 * sqrt(pi) * gamma(n-(1/2))/gamma(n), gamma is the gamma function,
   // n is the coefficient 6 and 3 respectively. They were calculated
-  // using python scipy.special.gamma()
+  // using python scipy.special.gamma() and numpy.sqrt()
   static constexpr double psi6_gc = 3.0925052683774523;
   static constexpr double psi3_gc = 4.71238898038469;
   double rho_A;
