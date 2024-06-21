@@ -15,6 +15,7 @@
 #define LMP_MATH_SPECIAL_H
 
 #include <cmath>
+#include <limits>
 
 namespace LAMMPS_NS {
 
@@ -178,6 +179,51 @@ namespace MathSpecial {
 
     return yy;
   }
+
+  /* Gauss hypergeometric 2F1 function.
+  * convergence restrictions: abs(x) < 1 and c not a negative integer or zero.
+  * From: https://cplusplus.com/forum/general/255896/#msg1120994
+  ------------------------------------------------------------------------ */
+
+  static inline double hypergeometric( double a, double b, double c, double x )
+  {
+    const double TOLERANCE = 1.0e-10;
+    double term = a * b * x / c;
+    double value = 1.0 + term;
+    int n = 1;
+
+    while ( abs( term ) > TOLERANCE )
+    {
+        a++, b++, c++, n++;
+        term *= a * b * x / c / n;
+        value += term;
+    }
+
+    return value;
+  }
+
+  /* Gauss hypergeometric 2F1 function.
+  * convergence restrictions: abs(z) < 1 and c not a negative integer or zero.
+  ------------------------------------------------------------------------ */
+
+static inline double hypergeometric_2F1(double a, double b, double c, double z) {
+    const int max_iterations = 1000;
+    const double tolerance = std::numeric_limits<double>::epsilon();
+
+    double sum = 1.0;
+    double term = 1.0;
+
+    for (int n = 1; n < max_iterations; ++n) {
+        term *= (a + n - 1) * (b + n - 1) / ((c + n - 1) * n) * z;
+        sum += term;
+
+        if (std::abs(term) < tolerance) {
+            break;
+        }
+    }
+
+    return sum;
+}
 }    // namespace MathSpecial
 }    // namespace LAMMPS_NS
 

@@ -219,10 +219,7 @@ if(BUILD_SHARED_LIBS AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND CMAKE_CROSSC
   set_target_properties(lammps PROPERTIES LINK_FLAGS "-Wl,--export-all-symbols")
 endif()
 
-find_package(GSL REQUIRED)
-include_directories(${GSL_INCLUDE_DIRS})
 add_executable(lmp ${MAIN_SOURCES})
-target_link_libraries(lmp PRIVATE ${GSL_LIBRARIES})
 target_link_libraries(lmp PRIVATE lammps)
 set_target_properties(lmp PROPERTIES OUTPUT_NAME ${LAMMPS_BINARY})
 # re-export all symbols for plugins

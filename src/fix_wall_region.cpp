@@ -37,7 +37,6 @@
 #include "respa.h"
 #include "update.h"
 
-#include "gsl/gsl_sf_hyperg.h"
 
 #include <cmath>
 #include <cstring>
@@ -48,6 +47,7 @@ using MathConst::MY_2PI;
 using MathConst::MY_PI;
 using MathConst::MY_SQRT2;
 using MathSpecial::powint;
+using MathSpecial::hypergeometric_2F1;
 
 enum { LJ93, LJ126, LJ1043, COLLOID, HARMONIC, MORSE , TJATJOPOULOS};
 
@@ -232,11 +232,6 @@ void FixWallRegion::init()
     }
     error->warning(FLERR,"R = {}, x: {}, y: {}, z: {}\n", R, domain->xprd, domain->yprd, domain->zprd);
     error->warning(FLERR,"sigma = {}, epsilon: {}, rho_A: {}, cutoff: {}\n",  sigma, epsilon, rho_A, cutoff);
-    error->warning(FLERR,"gsl_sf_hyperg_2F1(-4.5,-4.5,1,0.5) = {}\n", gsl_sf_hyperg_2F1(-4.5,-4.5,1,0.5));
-    error->warning(FLERR,"gsl_sf_hyperg_2F1(-4.5,-4.5,1,0.9) = {}\n", gsl_sf_hyperg_2F1(-4.5,-4.5,1,0.9));
-    error->warning(FLERR,"gsl_sf_hyperg_2F1(4.5,4.5,1,0.9) = {}\n", gsl_sf_hyperg_2F1(4.5,4.5,1,0.9));
-    error->warning(FLERR,"gsl_sf_hyperg_2F1_renorm(-4.5,-4.5,1,0.5) = {}\n", gsl_sf_hyperg_2F1_renorm(-4.5,-4.5,1,0.5));
-    error->warning(FLERR,"gsl_sf_hyperg_2F1_renorm(-4.5,-4.5,1,0.9) = {}\n", gsl_sf_hyperg_2F1_renorm(-4.5,-4.5,1,0.9));
     double sigma_R = sigma / R;
     tjat_coeff = 2 * MY_PI * rho_A * sigma * sigma * epsilon;
     // error->warning(FLERR,"tjat_coeff = {}, sigma_R: {}\n",  tjat_coeff, sigma_R);
@@ -539,19 +534,21 @@ void FixWallRegion::tjatjopoulos(double r)
   double rp2_R2 = rp_R * rp_R; 
   double omrp2_R2 = 1 - rp2_R2;
 
-  double psi6_2F1 = gsl_sf_hyperg_2F1(-4.5,-4.5,1,rp2_R2);
-  double psi3_2F1 = gsl_sf_hyperg_2F1(-1.5, -1.5, 1, rp2_R2);
+  double psi6_2F1 = hypergeometric_2F1(-4.5,-4.5,1,rp2_R2);
+  double psi3_2F1 = hypergeometric_2F1(-1.5, -1.5, 1, rp2_R2);
   double psi6 = psi6_coeff * powint(omrp2_R2, -10) * psi6_2F1;
   double psi3 = psi3_coeff * powint(omrp2_R2, -4) * psi3_2F1;
 
   eng = tjat_coeff * (psi6 - psi3);
 
+  error->all(FLERR, "rp = {}\nr = {}\neng = {}\ntjat_coeff = {}\npsi6 = {}\npsi3 = {}\npsi3_coeff = {}\npsi6_2F1 = {}\npsi3_2F1  = {}\nrp2_R2 = {}\n", rp, r, eng,tjat_coeff, psi6, psi3, psi3_coeff, psi6_2F1, psi3_2F1, rp2_R2);
+
   double rp2m_R2 = rp * rp - R * R;
   double psi6_der = psi6_coeff * (((rp * psi6_der1) *
-    ((rp2m_R2 * gsl_sf_hyperg_2F1(-3.5,-3.5,2,rp2_R2)) - (psi6_der2 * psi6_2F1)))
+    ((rp2m_R2 * hypergeometric_2F1(-3.5,-3.5,2,rp2_R2)) - (psi6_der2 * psi6_2F1)))
     / powint(rp2m_R2, 11));
   //check the derivative
-  double psi3_der = psi3_coeff * (((rp * psi3_der1 * gsl_sf_hyperg_2F1(-0.5, -0.5, 2, rp2_R2))
+  double psi3_der = psi3_coeff * (((rp * psi3_der1 * hypergeometric_2F1(-0.5, -0.5, 2, rp2_R2))
     - (rp * psi3_der2 * psi3_2F1))
     / powint(rp2m_R2, 5));
 
