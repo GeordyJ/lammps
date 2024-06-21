@@ -13,16 +13,13 @@
 /* ----------------------------------------------------------------------
  * Modified by: Geordy Jomon gj82@njit.edu
  * This fix is modified to add the Tjatjopoulos potential for cylinders
- * The equations are form 'Extension of the Steele 10-4-3 potential' by
+ * The equations are from 'Extension of the Steele 10-4-3 potential' by
  * Siderius 2011. Eq.5
+ *
+ * Restrictions:
+ * This is only intended for cylindrical regions with a constant radius.
+ * The dimensions of the axis can be variable.
 ------------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------
- 
- * TODO:
- * check everything
- * compile and run
- 
- ------------------------------------------------------------------------ */
 
 #include "fix_wall_region.h"
 
@@ -35,7 +32,6 @@
 #include "respa.h"
 #include "update.h"
 
-
 #include <cmath>
 #include <cstring>
 
@@ -47,7 +43,7 @@ using MathConst::MY_SQRT2;
 using MathSpecial::powint;
 using MathSpecial::hypergeometric_2F1;
 
-enum { LJ93, LJ126, LJ1043, COLLOID, HARMONIC, MORSE , TJATJOPOULOS};
+enum { LJ93, LJ126, LJ1043, COLLOID, HARMONIC, MORSE, TJATJOPOULOS };
 
 /* ---------------------------------------------------------------------- */
 
@@ -233,7 +229,6 @@ void FixWallRegion::init()
     tjat_coeff = 2 * MY_PI * rho_A * sigma * sigma * epsilon;
     psi6_coeff = psi6_gc * powint(sigma_R, 10); // 10 and 4 from 2n-2
     psi3_coeff = psi3_gc * powint(sigma_R, 4);
-    //force coefficients calculated using Wolfram
     psi6_der1 = 40.5 * powint(R,18);
     psi6_der2 = 0.493827 * R * R;
     psi3_der1 = 4.5 * powint(R,6);
@@ -540,7 +535,6 @@ void FixWallRegion::tjatjopoulos(double r)
   double psi6_der = psi6_coeff * (((rp * psi6_der1) *
     ((rp2m_R2 * hypergeometric_2F1(-3.5,-3.5,2,rp2_R2)) - (psi6_der2 * psi6_2F1)))
     / powint(rp2m_R2, 11));
-  //check the derivative
   double psi3_der = psi3_coeff * (((rp * psi3_der1 * hypergeometric_2F1(-0.5, -0.5, 2, rp2_R2))
     - (rp * psi3_der2 * psi3_2F1))
     / powint(rp2m_R2, 5));
