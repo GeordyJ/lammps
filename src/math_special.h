@@ -180,30 +180,9 @@ namespace MathSpecial {
     return yy;
   }
 
-  /* Gauss hypergeometric 2F1 function.
-  * convergence restrictions: abs(x) < 1 and c not a negative integer or zero.
-  * From: https://cplusplus.com/forum/general/255896/#msg1120994
-  ------------------------------------------------------------------------ */
-
-  static inline double hypergeometric( double a, double b, double c, double x )
-  {
-    const double TOLERANCE = 1.0e-10;
-    double term = a * b * x / c;
-    double value = 1.0 + term;
-    int n = 1;
-
-    while ( abs( term ) > TOLERANCE )
-    {
-        a++, b++, c++, n++;
-        term *= a * b * x / c / n;
-        value += term;
-    }
-
-    return value;
-  }
-
-  /* Gauss hypergeometric 2F1 function.
+  /* Gauss hypergeometric 2F1 function. (restricted)
   * convergence restrictions: abs(z) < 1 and c not a negative integer or zero.
+  * For fix wall/region tjatjopoulos. By Geordy Jomon gj82@njit.edu
   ------------------------------------------------------------------------ */
 
 static inline double hypergeometric_2F1(double a, double b, double c, double z) {

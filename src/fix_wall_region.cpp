@@ -19,8 +19,6 @@
 /* ----------------------------------------------------------------------
  
  * TODO:
- * check if r' = R - r
- * Try using region->contact[m].radius for R
  * check everything
  * compile and run
  
@@ -216,29 +214,25 @@ void FixWallRegion::init()
     double r4inv = r2inv * r2inv;
     offset = coeff3 * r4inv * r4inv * rinv - coeff4 * r2inv * rinv;
   } else if (style == TJATJOPOULOS) {
-    //Getting the radius of the cylinderical region, if the box is rectangular,
+    //Getting the radius of the cylindrical region, if the box is rectangular,
     //then the diameter of the circular cross section will be equal to the side
     //length in the same plane. to get the radius of the circular cross section
     //it is imperitive that the cross section of the box is a square in atleast
     //one pane- yz, yx or zx.
-    if (domain->yprd_half == domain->zprd_half) {
-      R = domain->yprd_half;
-    } else if (domain->yprd_half == domain->xprd_half) {
-      R = domain->yprd_half;
-    } else if (domain->zprd_half == domain->xprd_half) {
-      R = domain->zprd_half;
+    double xprd_half = (region->extent_xhi - region->extent_xlo) / 2;
+    double yprd_half = (region->extent_yhi - region->extent_ylo) / 2;
+    double zprd_half = (region->extent_zhi - region->extent_zlo) / 2;
+    if (yprd_half == zprd_half || yprd_half == xprd_half) {
+      R = yprd_half;
+    } else if (zprd_half == xprd_half) {
+      R = zprd_half;
     } else {
-      error->all(FLERR, "fix wall/region Tjatjopoulos:  {} should have uniform dimensions in atleast one pane x:{}, y:{}, z:{}", idregion, domain->xprd_half, domain->yprd_half, domain->zprd_half);
+      error->all(FLERR, "fix wall/region Tjatjopoulos:  {} should have uniform dimensions in atleast one pane x:{}, y:{}, z:{}", idregion, xprd_half, yprd_half, zprd_half);
     }
-    error->warning(FLERR,"R = {}, x: {}, y: {}, z: {}\n", R, domain->xprd, domain->yprd, domain->zprd);
-    error->warning(FLERR,"sigma = {}, epsilon: {}, rho_A: {}, cutoff: {}\n",  sigma, epsilon, rho_A, cutoff);
     double sigma_R = sigma / R;
     tjat_coeff = 2 * MY_PI * rho_A * sigma * sigma * epsilon;
-    // error->warning(FLERR,"tjat_coeff = {}, sigma_R: {}\n",  tjat_coeff, sigma_R);
-
     psi6_coeff = psi6_gc * powint(sigma_R, 10); // 10 and 4 from 2n-2
     psi3_coeff = psi3_gc * powint(sigma_R, 4);
-    // error->warning(FLERR,"psi6_coeff = {}, psi3_coeff: {}\n",  psi6_coeff, psi3_coeff);
     //force coefficients calculated using Wolfram
     psi6_der1 = 40.5 * powint(R,18);
     psi6_der2 = 0.493827 * R * R;
@@ -324,7 +318,9 @@ void FixWallRegion::post_force(int vflag)
         } else
           rinv = 1.0 / region->contact[m].r;
 
-        if (style == LJ93)
+        if (style == TJATJOPOULOS)
+          tjatjopoulos(region->contact[m].r);
+        else if (style == LJ93)
           lj93(region->contact[m].r);
         else if (style == LJ126)
           lj126(region->contact[m].r);
@@ -334,8 +330,6 @@ void FixWallRegion::post_force(int vflag)
           morse(region->contact[m].r);
         else if (style == COLLOID)
           colloid(region->contact[m].r, radius[i]);
-        else if (style == TJATJOPOULOS)
-          tjatjopoulos(region->contact[m].r);
         else
           harmonic(region->contact[m].r);
 
@@ -519,12 +513,13 @@ void FixWallRegion::harmonic(double r)
 }
 
 /* ----------------------------------------------------------------------
-   Tjatjopoulos cylinderical interaction for particle with wall
-   compute eng and fwall = magnitude of wall force All equations
-   are from 'Extension of the Steele 10-4-3 potential' Siderius 2011
-  gsl_sf_hyperg_2F1 is the gauss hypergeometric function.
-  This potential considers the distance of the particle from the center
-  of the cylinder rp = R - r where r is the distance form the surface.
+   Tjatjopoulos cylindrical interaction for particle with wall.
+   compute eng and fwall = magnitude of wall force. Equations are from
+   'Extension of the Steele 10-4-3 potential' Siderius & Gelb 2011 Eq.(5)
+   hypergeometric_2F1 is the gauss hypergeometric function for restricted
+   domain: c > 0 and abs(z) < 1. This potential considers the distance of
+   the particle from the center of the cylinder rp = R - r where r is the
+   distance from the surface, R is the radius of the cylindrical region
 ------------------------------------------------------------------------- */
 
 void FixWallRegion::tjatjopoulos(double r)
@@ -541,8 +536,6 @@ void FixWallRegion::tjatjopoulos(double r)
 
   eng = tjat_coeff * (psi6 - psi3);
 
-  error->all(FLERR, "rp = {}\nr = {}\neng = {}\ntjat_coeff = {}\npsi6 = {}\npsi3 = {}\npsi3_coeff = {}\npsi6_2F1 = {}\npsi3_2F1  = {}\nrp2_R2 = {}\n", rp, r, eng,tjat_coeff, psi6, psi3, psi3_coeff, psi6_2F1, psi3_2F1, rp2_R2);
-
   double rp2m_R2 = rp * rp - R * R;
   double psi6_der = psi6_coeff * (((rp * psi6_der1) *
     ((rp2m_R2 * hypergeometric_2F1(-3.5,-3.5,2,rp2_R2)) - (psi6_der2 * psi6_2F1)))
@@ -552,5 +545,5 @@ void FixWallRegion::tjatjopoulos(double r)
     - (rp * psi3_der2 * psi3_2F1))
     / powint(rp2m_R2, 5));
 
-  fwall = - tjat_coeff * (psi6_der - psi3_der);
+  fwall = tjat_coeff * (psi6_der - psi3_der);
 }
