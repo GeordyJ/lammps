@@ -11,14 +11,30 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------
- * Modified by: Geordy Jomon gj82@njit.edu
- * This fix is modified to add the Tjatjopoulos potential for cylinders
- * The equations are from 'Extension of the Steele 10-4-3 potential' by
- * Siderius 2011. Eq.5
- *
- * Restrictions:
- * This is only intended for cylindrical regions with a constant radius.
- * The dimensions of the axis can be variable.
+   Modified by: Geordy Jomon (gj82@njit.edu)
+
+   Description:
+   This modification introduces the Tjatjopoulos potential for cylindrical
+   regions into the simulation. The equations are derived from 'Extension
+   of the Steele 10-4-3 potential' by Siderius and Gelb (2011), specifically
+   Equation 5.
+
+   Restrictions:
+   - This potential is applicable only to cylindrical regions with a constant
+     radius.
+   - The dimensions along the axis of the cylinder can vary.
+
+   Notes:
+   - The parameters are solid-fluid epsilon and sigma, solid surface-density
+     and the cutoff radius.
+   - The potential calculation uses the radius of the cylindrical region as
+     a parameter.
+   - The radius is determined by inspecting the dimensions of the region along
+     all three axes. If two dimensions are equal, they define the radial plane,
+     and the radius is half of this dimension.
+   - If no two dimensions are equal, the region is not cylindrical, and an
+     error is returned.
+
 ------------------------------------------------------------------------- */
 
 #include "fix_wall_region.h"
@@ -210,11 +226,6 @@ void FixWallRegion::init()
     double r4inv = r2inv * r2inv;
     offset = coeff3 * r4inv * r4inv * rinv - coeff4 * r2inv * rinv;
   } else if (style == TJATJOPOULOS) {
-    //Getting the radius of the cylindrical region, if the box is rectangular,
-    //then the diameter of the circular cross section will be equal to the side
-    //length in the same plane. to get the radius of the circular cross section
-    //it is imperitive that the cross section of the box is a square in atleast
-    //one pane- yz, yx or zx.
     double xprd_half = (region->extent_xhi - region->extent_xlo) / 2;
     double yprd_half = (region->extent_yhi - region->extent_ylo) / 2;
     double zprd_half = (region->extent_zhi - region->extent_zlo) / 2;
