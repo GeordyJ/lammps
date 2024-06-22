@@ -185,7 +185,8 @@ namespace MathSpecial {
   * For fix wall/region tjatjopoulos. By Geordy Jomon gj82@njit.edu
   ------------------------------------------------------------------------ */
 
-static inline double hypergeometric_2F1(double a, double b, double c, double z) {
+  static inline double hypergeometric_2F1(double a, double b, double c, double z)
+  {
     const int max_iterations = 1000;
     const double tolerance = std::numeric_limits<double>::epsilon();
 
@@ -193,16 +194,14 @@ static inline double hypergeometric_2F1(double a, double b, double c, double z) 
     double term = 1.0;
 
     for (int n = 1; n < max_iterations; ++n) {
-        term *= (a + n - 1) * (b + n - 1) / ((c + n - 1) * n) * z;
-        sum += term;
+      term *= (a + n - 1) * (b + n - 1) / ((c + n - 1) * n) * z;
+      sum += term;
 
-        if (std::abs(term) < tolerance) {
-            break;
-        }
+      if (abs(term) < tolerance) break;
     }
 
     return sum;
-}
+  }
 }    // namespace MathSpecial
 }    // namespace LAMMPS_NS
 

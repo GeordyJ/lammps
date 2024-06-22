@@ -313,20 +313,28 @@ void FixWallRegion::post_force(int vflag)
         } else
           rinv = 1.0 / region->contact[m].r;
 
-        if (style == TJATJOPOULOS)
-          tjatjopoulos(region->contact[m].r);
-        else if (style == LJ93)
-          lj93(region->contact[m].r);
-        else if (style == LJ126)
-          lj126(region->contact[m].r);
-        else if (style == LJ1043)
-          lj1043(region->contact[m].r);
-        else if (style == MORSE)
-          morse(region->contact[m].r);
-        else if (style == COLLOID)
-          colloid(region->contact[m].r, radius[i]);
-        else
-          harmonic(region->contact[m].r);
+        switch (style) {
+          case TJATJOPOULOS:
+            tjatjopoulos(region->contact[m].r);
+            break;
+          case LJ93:
+            lj93(region->contact[m].r);
+            break;
+          case LJ1043:
+            lj1043(region->contact[m].r);
+            break;
+          case MORSE:
+            morse(region->contact[m].r);
+            break;
+          case COLLOID:
+            colloid(region->contact[m].r, radius[i]);
+            break;
+          case HARMONIC:
+            harmonic(region->contact[m].r);
+            break;
+          default:
+            lj126(region->contact[m].r);
+        }
 
         delx = region->contact[m].delx;
         dely = region->contact[m].dely;
