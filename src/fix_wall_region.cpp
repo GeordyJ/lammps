@@ -54,7 +54,6 @@
 using namespace LAMMPS_NS;
 using namespace FixConst;
 using MathConst::MY_2PI;
-using MathConst::MY_PI;
 using MathConst::MY_SQRT2;
 using MathSpecial::powint;
 using MathSpecial::hypergeometric_2F1;
@@ -237,7 +236,7 @@ void FixWallRegion::init()
       error->all(FLERR, "fix wall/region Tjatjopoulos:  {} should have uniform dimensions in atleast one pane x:{}, y:{}, z:{}", idregion, xprd_half, yprd_half, zprd_half);
     }
     double sigma_R = sigma / R;
-    tjat_coeff = 2 * MY_PI * rho_A * sigma * sigma * epsilon;
+    tjat_coeff = MY_2PI * rho_A * sigma * sigma * epsilon;
     psi6_coeff = psi6_gc * powint(sigma_R, 10); // 10 and 4 from 2n-2
     psi3_coeff = psi3_gc * powint(sigma_R, 4);
     psi6_der1 = 40.5 * powint(R,18);
@@ -532,31 +531,31 @@ void FixWallRegion::harmonic(double r)
    'Extension of the Steele 10-4-3 potential' Siderius & Gelb 2011 Eq.(5)
    hypergeometric_2F1 is the gauss hypergeometric function for restricted
    domain: c > 0 and abs(z) < 1. This potential considers the distance of
-   the particle from the center of the cylinder rp = R - r where r is the
+   the particle from the center of the cylinder dr = R - r where r is the
    distance from the surface, R is the radius of the cylindrical region
 ------------------------------------------------------------------------- */
 
 void FixWallRegion::tjatjopoulos(double r)
 {
-  double rp = R - r;
-  double rp_R = rp / R;
-  double rp2_R2 = rp_R * rp_R; 
-  double omrp2_R2 = 1 - rp2_R2;
+  double dr = R - r;
+  double dr_R = dr / R;
+  double dr2_R2 = dr_R * dr_R; 
+  double omdr2_R2 = 1 - dr2_R2;
 
-  double psi6_2F1 = hypergeometric_2F1(-4.5,-4.5,1,rp2_R2);
-  double psi3_2F1 = hypergeometric_2F1(-1.5, -1.5, 1, rp2_R2);
-  double psi6 = psi6_coeff * powint(omrp2_R2, -10) * psi6_2F1;
-  double psi3 = psi3_coeff * powint(omrp2_R2, -4) * psi3_2F1;
+  double psi6_2F1 = hypergeometric_2F1(-4.5,-4.5,1,dr2_R2);
+  double psi3_2F1 = hypergeometric_2F1(-1.5, -1.5, 1, dr2_R2);
+  double psi6 = psi6_coeff * powint(omdr2_R2, -10) * psi6_2F1;
+  double psi3 = psi3_coeff * powint(omdr2_R2, -4) * psi3_2F1;
 
   eng = tjat_coeff * (psi6 - psi3);
 
-  double rp2m_R2 = rp * rp - R * R;
-  double psi6_der = psi6_coeff * (((rp * psi6_der1) *
-    ((rp2m_R2 * hypergeometric_2F1(-3.5,-3.5,2,rp2_R2)) - (psi6_der2 * psi6_2F1)))
-    / powint(rp2m_R2, 11));
-  double psi3_der = psi3_coeff * (((rp * psi3_der1 * hypergeometric_2F1(-0.5, -0.5, 2, rp2_R2))
-    - (rp * psi3_der2 * psi3_2F1))
-    / powint(rp2m_R2, 5));
+  double dr2m_R2 = dr * dr - R * R;
+  double psi6_der = psi6_coeff * (((dr * psi6_der1) *
+    ((dr2m_R2 * hypergeometric_2F1(-3.5,-3.5,2,dr2_R2)) - (psi6_der2 * psi6_2F1)))
+    / powint(dr2m_R2, 11));
+  double psi3_der = psi3_coeff * (((dr * psi3_der1 * hypergeometric_2F1(-0.5, -0.5, 2, dr2_R2))
+    - (dr * psi3_der2 * psi3_2F1))
+    / powint(dr2m_R2, 5));
 
   fwall = tjat_coeff * (psi6_der - psi3_der);
 }
