@@ -21,6 +21,10 @@ namespace LAMMPS_NS {
 
 namespace MathSpecial {
 
+  // Constants for hypergeometric_2F1(a,b,c,z)
+  static constexpr int max_iterations_2F1 = 1000;
+  static constexpr double tolerance_2F1 = std::numeric_limits<double>::epsilon();
+
   /*! Fast tabulated factorial function
    *
    *  This function looks up pre-computed factorial values for arguments of n = 0
@@ -187,17 +191,14 @@ namespace MathSpecial {
 
   static inline double hypergeometric_2F1(double a, double b, double c, double z)
   {
-    const int max_iterations = 1000;
-    const double tolerance = std::numeric_limits<double>::epsilon();
-
     double sum = 1.0;
     double term = 1.0;
 
-    for (int n = 1; n < max_iterations; ++n) {
+    for (int n = 1; n < max_iterations_2F1; ++n) {
       term *= (a + n - 1) * (b + n - 1) / ((c + n - 1) * n) * z;
       sum += term;
 
-      if (abs(term) < tolerance) break;
+      if (abs(term) < tolerance_2F1) break;
     }
 
     return sum;
