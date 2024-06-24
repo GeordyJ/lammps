@@ -22,11 +22,15 @@
    Restrictions:
    - This potential is applicable only to cylindrical regions with a constant
      radius.
-   - The dimensions along the axis of the cylinder can vary.
+   - This implementation was designed with the axis of the cylinder being
+     perodic. This can be achived by setting the height of the region as INF
+     in the lower and upper bound.
 
    Notes:
    - The parameters are solid-fluid epsilon and sigma, solid surface-density
      and the cutoff radius.
+   - The dimensions along the axis of the cylinder can vary, i.e there can be
+     volume fluctuations in that axis.
    - The potential calculation uses the radius of the cylindrical region as
      a parameter.
    - The radius is determined by inspecting the dimensions of the region along
@@ -34,6 +38,8 @@
      and the radius is half of this dimension.
    - If no two dimensions are equal, the region is not cylindrical, and an
      error is returned.
+   - This is still in testing phase and while there is agreement in one
+     system that was tested, rigrous testing is required.
 
 ------------------------------------------------------------------------- */
 
@@ -542,7 +548,7 @@ void FixWallRegion::tjatjopoulos(double r)
   double dr2_R2 = dr_R * dr_R; 
   double omdr2_R2 = 1 - dr2_R2;
 
-  double psi6_2F1 = hypergeometric_2F1(-4.5,-4.5,1,dr2_R2);
+  double psi6_2F1 = hypergeometric_2F1(-4.5, -4.5, 1, dr2_R2);
   double psi3_2F1 = hypergeometric_2F1(-1.5, -1.5, 1, dr2_R2);
   double psi6 = psi6_coeff * powint(omdr2_R2, -10) * psi6_2F1;
   double psi3 = psi3_coeff * powint(omdr2_R2, -4) * psi3_2F1;
@@ -551,7 +557,7 @@ void FixWallRegion::tjatjopoulos(double r)
 
   double dr2m_R2 = dr * dr - R * R;
   double psi6_der = psi6_coeff * (((dr * psi6_der1) *
-    ((dr2m_R2 * hypergeometric_2F1(-3.5,-3.5,2,dr2_R2)) - (psi6_der2 * psi6_2F1)))
+    ((dr2m_R2 * hypergeometric_2F1(-3.5, -3.5, 2, dr2_R2)) - (psi6_der2 * psi6_2F1)))
     / powint(dr2m_R2, 11));
   double psi3_der = psi3_coeff * (((dr * psi3_der1 * hypergeometric_2F1(-0.5, -0.5, 2, dr2_R2))
     - (dr * psi3_der2 * psi3_2F1))
