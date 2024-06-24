@@ -189,7 +189,7 @@ namespace MathSpecial {
   * For fix wall/region tjatjopoulos. By Geordy Jomon gj82@njit.edu
   ------------------------------------------------------------------------ */
 
-  static inline double hypergeometric_2F1(double a, double b, double c, double z)
+  static inline double hypergeometric_2F1(const double &a, const double &b, const double &c, const double &z)
   {
     double sum = 1.0;
     double term = 1.0;
