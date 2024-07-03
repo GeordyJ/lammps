@@ -19,6 +19,7 @@
 #define LMP_MATH_EXTRA_H
 
 #include <cmath>
+#include <limits>
 
 namespace MathExtra {
 
@@ -125,6 +126,13 @@ void inertia_triangle(double *idiag, double *quat, double mass, double *inertia)
 // triclinic bounding box of a spher
 
 void tribbox(double *, double, double *);
+
+// Hypergeometric function 2F1(a,b,c,z) where c > 0 and |z| < 1
+
+// Constants for hypergeometric_2F1(a,b,c,z)
+constexpr int max_iterations_2F1 = 1000;
+constexpr double tolerance_2F1 = std::numeric_limits<double>::epsilon();
+inline double hypergeometric_2F1(const double &a, const double &b, const double &c, const double &z);
 
 }    // namespace MathExtra
 
@@ -836,6 +844,26 @@ inline void MathExtra::outer3(const double *v1, const double *v2, double ans[3][
   ans[2][0] = v1[2] * v2[0];
   ans[2][1] = v1[2] * v2[1];
   ans[2][2] = v1[2] * v2[2];
+}
+
+/* Gauss hypergeometric 2F1 function. (restricted)
+* convergence restrictions: abs(z) < 1 and c not a negative integer or zero.
+* For fix wall/region/tjatjopoulos. By Geordy Jomon gj82@njit.edu
+------------------------------------------------------------------------ */
+
+inline double MathExtra::hypergeometric_2F1(const double &a, const double &b, const double &c, const double &z)
+{
+  double sum = 1.0;
+  double term = 1.0;
+
+  for (int n = 1; n < max_iterations_2F1; ++n) {
+    term *= (a + n - 1) * (b + n - 1) / ((c + n - 1) * n) * z;
+    sum += term;
+
+    if (abs(term) < tolerance_2F1) break;
+  }
+
+  return sum;
 }
 
 #endif

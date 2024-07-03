@@ -15,15 +15,10 @@
 #define LMP_MATH_SPECIAL_H
 
 #include <cmath>
-#include <limits>
 
 namespace LAMMPS_NS {
 
 namespace MathSpecial {
-
-  // Constants for hypergeometric_2F1(a,b,c,z)
-  static constexpr int max_iterations_2F1 = 1000;
-  static constexpr double tolerance_2F1 = std::numeric_limits<double>::epsilon();
 
   /*! Fast tabulated factorial function
    *
@@ -184,25 +179,6 @@ namespace MathSpecial {
     return yy;
   }
 
-  /* Gauss hypergeometric 2F1 function. (restricted)
-  * convergence restrictions: abs(z) < 1 and c not a negative integer or zero.
-  * For fix wall/region tjatjopoulos. By Geordy Jomon gj82@njit.edu
-  ------------------------------------------------------------------------ */
-
-  static inline double hypergeometric_2F1(const double &a, const double &b, const double &c, const double &z)
-  {
-    double sum = 1.0;
-    double term = 1.0;
-
-    for (int n = 1; n < max_iterations_2F1; ++n) {
-      term *= (a + n - 1) * (b + n - 1) / ((c + n - 1) * n) * z;
-      sum += term;
-
-      if (abs(term) < tolerance_2F1) break;
-    }
-
-    return sum;
-  }
 }    // namespace MathSpecial
 }    // namespace LAMMPS_NS
 

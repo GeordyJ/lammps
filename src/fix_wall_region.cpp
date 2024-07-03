@@ -50,6 +50,7 @@
 #include "error.h"
 #include "math_const.h"
 #include "math_special.h"
+#include "math_extra.h"
 #include "region.h"
 #include "respa.h"
 #include "update.h"
@@ -62,7 +63,7 @@ using namespace FixConst;
 using MathConst::MY_2PI;
 using MathConst::MY_SQRT2;
 using MathSpecial::powint;
-using MathSpecial::hypergeometric_2F1;
+using MathExtra::hypergeometric_2F1;
 
 enum { LJ93, LJ126, LJ1043, COLLOID, HARMONIC, MORSE, TJATJOPOULOS };
 
