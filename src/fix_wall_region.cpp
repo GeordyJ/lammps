@@ -231,6 +231,9 @@ void FixWallRegion::init()
     double r4inv = r2inv * r2inv;
     offset = coeff3 * r4inv * r4inv * rinv - coeff4 * r2inv * rinv;
   } else if (style == TJATJOPOULOS) {
+    if (region->varshape) {
+      error->all(FLERR, "fix wall/region tjatjopoulos:  {} region must be static not dynamic", idregion);
+    }
     double xprd_half = (region->extent_xhi - region->extent_xlo) / 2;
     double yprd_half = (region->extent_yhi - region->extent_ylo) / 2;
     double zprd_half = (region->extent_zhi - region->extent_zlo) / 2;
@@ -242,6 +245,7 @@ void FixWallRegion::init()
       error->all(FLERR, "fix wall/region Tjatjopoulos:  {} should have uniform dimensions in atleast one pane x:{}, y:{}, z:{}", idregion, xprd_half, yprd_half, zprd_half);
     }
     double sigma_R = sigma / R;
+    R2 = R * R;
     tjat_coeff = MY_2PI * rho_A * sigma * sigma * epsilon;
     psi6_coeff = psi6_gc * powint(sigma_R, 10); // 10 and 4 from 2n-2
     psi3_coeff = psi3_gc * powint(sigma_R, 4);
@@ -544,9 +548,9 @@ void FixWallRegion::harmonic(double r)
 void FixWallRegion::tjatjopoulos(double r)
 {
   double dr = R - r;
-  double dr_R = dr / R;
-  double dr2_R2 = dr_R * dr_R; 
-  double omdr2_R2 = 1 - dr2_R2;
+  double dr2 = dr * dr;
+  double dr2_R2 = dr2 / R2;
+  double omdr2_R2 = 1.0 - dr2_R2;
 
   double psi6_2F1 = hypergeometric_2F1(-4.5, -4.5, 1, dr2_R2);
   double psi3_2F1 = hypergeometric_2F1(-1.5, -1.5, 1, dr2_R2);
@@ -555,7 +559,7 @@ void FixWallRegion::tjatjopoulos(double r)
 
   eng = tjat_coeff * (psi6 - psi3);
 
-  double dr2m_R2 = dr * dr - R * R;
+  double dr2m_R2 = dr2 - R2;
   double psi6_der = psi6_coeff * (((dr * psi6_der1) *
     ((dr2m_R2 * hypergeometric_2F1(-3.5, -3.5, 2, dr2_R2)) - (psi6_der2 * psi6_2F1)))
     / powint(dr2m_R2, 11));

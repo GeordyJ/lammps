@@ -57,7 +57,7 @@ class FixWallRegion : public Fix {
   static constexpr double psi6_gc = 3.0925052683774523;
   static constexpr double psi3_gc = 4.71238898038469;
   double rho_A; //Surface density
-  double R; //radius of cylindrical region.
+  double R, R2; //radius and its square of cylindrical region
   double tjat_coeff, psi6_coeff, psi3_coeff;
   double psi6_der1, psi6_der2, psi3_der1, psi3_der2;
 
