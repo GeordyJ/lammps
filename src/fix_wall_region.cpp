@@ -10,38 +10,6 @@
 
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------
-   Modified by: Geordy Jomon (gj82@njit.edu)
-
-   Description:
-   This modification introduces the Tjatjopoulos potential for cylindrical
-   regions into the simulation. The equations are derived from 'Extension
-   of the Steele 10-4-3 potential' by Siderius and Gelb (2011), specifically
-   Equation 5.
-
-   Restrictions:
-   - This potential is applicable only to cylindrical regions with a constant
-     radius.
-   - This implementation was designed with the axis of the cylinder being
-     perodic. This can be achived by setting the height of the region as INF
-     in the lower and upper bound.
-
-   Notes:
-   - The parameters are solid-fluid epsilon and sigma, solid surface-density
-     and the cutoff radius.
-   - The dimensions along the axis of the cylinder can vary, i.e there can be
-     volume fluctuations in that axis.
-   - The potential calculation uses the radius of the cylindrical region as
-     a parameter.
-   - The radius is determined by inspecting the dimensions of the region along
-     all three axes. If two dimensions are equal, they define the radial plane,
-     and the radius is half of this dimension.
-   - If no two dimensions are equal, the region is not cylindrical, and an
-     error is returned.
-   - This is still in testing phase and while there is agreement in one
-     system that was tested, rigrous testing is required.
-
-------------------------------------------------------------------------- */
 
 #include "fix_wall_region.h"
 
@@ -50,7 +18,6 @@
 #include "error.h"
 #include "math_const.h"
 #include "math_special.h"
-#include "math_extra.h"
 #include "region.h"
 #include "respa.h"
 #include "update.h"
@@ -63,9 +30,8 @@ using namespace FixConst;
 using MathConst::MY_2PI;
 using MathConst::MY_SQRT2;
 using MathSpecial::powint;
-using MathExtra::hypergeometric_2F1;
 
-enum { LJ93, LJ126, LJ1043, COLLOID, HARMONIC, MORSE, TJATJOPOULOS };
+enum { LJ93, LJ126, LJ1043, COLLOID, HARMONIC, MORSE };
 
 /* ---------------------------------------------------------------------- */
 
@@ -103,8 +69,6 @@ FixWallRegion::FixWallRegion(LAMMPS *lmp, int narg, char **arg) :
     style = HARMONIC;
   else if (strcmp(arg[4], "morse") == 0)
     style = MORSE;
-  else if (strcmp(arg[4], "tjatjopoulos") == 0)
-    style = TJATJOPOULOS;
   else
     error->all(FLERR, "Unknown fix wall/region style {}", arg[4]);
 
@@ -116,14 +80,6 @@ FixWallRegion::FixWallRegion(LAMMPS *lmp, int narg, char **arg) :
     epsilon = utils::numeric(FLERR, arg[5], false, lmp);
     alpha = utils::numeric(FLERR, arg[6], false, lmp);
     sigma = utils::numeric(FLERR, arg[7], false, lmp);
-    cutoff = utils::numeric(FLERR, arg[8], false, lmp);
-
-  } else if (style == TJATJOPOULOS) {
-    if (narg != 9) error->all(FLERR, "Illegal fix wall/region tjatjopoulos command, incorrect number of arguments.");
- 
-    epsilon = utils::numeric(FLERR, arg[5], false, lmp);
-    sigma = utils::numeric(FLERR, arg[6], false, lmp);
-    rho_A = utils::numeric(FLERR, arg[7], false, lmp);
     cutoff = utils::numeric(FLERR, arg[8], false, lmp);
 
   } else {
@@ -231,29 +187,6 @@ void FixWallRegion::init()
     double r2inv = rinv * rinv;
     double r4inv = r2inv * r2inv;
     offset = coeff3 * r4inv * r4inv * rinv - coeff4 * r2inv * rinv;
-  } else if (style == TJATJOPOULOS) {
-    if (region->varshape) {
-      error->all(FLERR, "fix wall/region tjatjopoulos:  {} region must be static not dynamic", idregion);
-    }
-    double xprd_half = (region->extent_xhi - region->extent_xlo) / 2;
-    double yprd_half = (region->extent_yhi - region->extent_ylo) / 2;
-    double zprd_half = (region->extent_zhi - region->extent_zlo) / 2;
-    if (yprd_half == zprd_half || yprd_half == xprd_half) {
-      R = yprd_half;
-    } else if (zprd_half == xprd_half) {
-      R = zprd_half;
-    } else {
-      error->all(FLERR, "fix wall/region Tjatjopoulos:  {} should have uniform dimensions in atleast one pane x:{}, y:{}, z:{}", idregion, xprd_half, yprd_half, zprd_half);
-    }
-    double sigma_R = sigma / R;
-    R2 = R * R;
-    tjat_coeff = MY_2PI * rho_A * sigma * sigma * epsilon;
-    psi6_coeff = psi6_gc * powint(sigma_R, 10); // 10 and 4 from 2n-2
-    psi3_coeff = psi3_gc * powint(sigma_R, 4);
-    psi6_der1 = 40.5 * powint(R,18);
-    psi6_der2 = 0.493827 * R * R;
-    psi3_der1 = 4.5 * powint(R,6);
-    psi3_der2 = 8 * powint(R,8);
   }
 
   if (utils::strmatch(update->integrate_style, "^respa")) {
@@ -334,28 +267,18 @@ void FixWallRegion::post_force(int vflag)
         } else
           rinv = 1.0 / region->contact[m].r;
 
-        switch (style) {
-          case TJATJOPOULOS:
-            tjatjopoulos(region->contact[m].r);
-            break;
-          case LJ93:
-            lj93(region->contact[m].r);
-            break;
-          case LJ1043:
-            lj1043(region->contact[m].r);
-            break;
-          case MORSE:
-            morse(region->contact[m].r);
-            break;
-          case COLLOID:
-            colloid(region->contact[m].r, radius[i]);
-            break;
-          case HARMONIC:
-            harmonic(region->contact[m].r);
-            break;
-          default:
-            lj126(region->contact[m].r);
-        }
+        if (style == LJ93)
+          lj93(region->contact[m].r);
+        else if (style == LJ126)
+          lj126(region->contact[m].r);
+        else if (style == LJ1043)
+          lj1043(region->contact[m].r);
+        else if (style == MORSE)
+          morse(region->contact[m].r);
+        else if (style == COLLOID)
+          colloid(region->contact[m].r, radius[i]);
+        else
+          harmonic(region->contact[m].r);
 
         delx = region->contact[m].delx;
         dely = region->contact[m].dely;
@@ -534,39 +457,4 @@ void FixWallRegion::harmonic(double r)
   double dr = cutoff - r;
   fwall = 2.0 * epsilon * dr;
   eng = epsilon * dr * dr;
-}
-
-/* ----------------------------------------------------------------------
-   Tjatjopoulos cylindrical interaction for particle with wall.
-   compute eng and fwall = magnitude of wall force. Equations are from
-   'Extension of the Steele 10-4-3 potential' Siderius & Gelb 2011 Eq.(5)
-   hypergeometric_2F1 is the gauss hypergeometric function for restricted
-   domain: c > 0 and abs(z) < 1. This potential considers the distance of
-   the particle from the center of the cylinder dr = R - r where r is the
-   distance from the surface, R is the radius of the cylindrical region
-------------------------------------------------------------------------- */
-
-void FixWallRegion::tjatjopoulos(double r)
-{
-  double dr = R - r;
-  double dr2 = dr * dr;
-  double dr2_R2 = dr2 / R2;
-  double omdr2_R2 = 1.0 - dr2_R2;
-
-  double psi6_2F1 = hypergeometric_2F1(-4.5, -4.5, 1, dr2_R2);
-  double psi3_2F1 = hypergeometric_2F1(-1.5, -1.5, 1, dr2_R2);
-  double psi6 = psi6_coeff * powint(omdr2_R2, -10) * psi6_2F1;
-  double psi3 = psi3_coeff * powint(omdr2_R2, -4) * psi3_2F1;
-
-  eng = tjat_coeff * (psi6 - psi3);
-
-  double dr2m_R2 = dr2 - R2;
-  double psi6_der = psi6_coeff * (((dr * psi6_der1) *
-    ((dr2m_R2 * hypergeometric_2F1(-3.5, -3.5, 2, dr2_R2)) - (psi6_der2 * psi6_2F1)))
-    / powint(dr2m_R2, 11));
-  double psi3_der = psi3_coeff * (((dr * psi3_der1 * hypergeometric_2F1(-0.5, -0.5, 2, dr2_R2))
-    - (dr * psi3_der2 * psi3_2F1))
-    / powint(dr2m_R2, 5));
-
-  fwall = tjat_coeff * (psi6_der - psi3_der);
 }

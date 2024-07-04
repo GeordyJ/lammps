@@ -13,21 +13,21 @@
 
 #ifdef FIX_CLASS
 // clang-format off
-FixStyle(wall/region,FixWallRegion);
+FixStyle(wall/region/tjatjopoulos,FixWallRegionTjat);
 // clang-format on
 #else
 
-#ifndef LMP_FIX_WALL_REGION_H
-#define LMP_FIX_WALL_REGION_H
+#ifndef LMP_FIX_WALL_REGION_TJAT_H
+#define LMP_FIX_WALL_REGION_TJAT_H
 
 #include "fix.h"
 
 namespace LAMMPS_NS {
 
-class FixWallRegion : public Fix {
+class FixWallRegionTjat : public Fix {
  public:
-  FixWallRegion(class LAMMPS *, int, char **);
-  ~FixWallRegion() override;
+  FixWallRegionTjat(class LAMMPS *, int, char **);
+  ~FixWallRegionTjat() override;
   int setmask() override;
   void init() override;
   void setup(int) override;
@@ -40,24 +40,20 @@ class FixWallRegion : public Fix {
 
  private:
   int style;
-  double epsilon, sigma, cutoff;
-  double alpha;
+  double epsilon, sigma, cutoff, rho_A; //Surface density
+  double R, R2; //radius and its square of cylindrical region
+  double tjat_coeff, psi6_coeff, psi3_coeff;
+  double psi6_der1, psi6_der2, psi3_der1, psi3_der2;
+
   int eflag;
   double ewall[4], ewall_all[4];
   int ilevel_respa;
   char *idregion;
   class Region *region;
 
-  double coeff1, coeff2, coeff3, coeff4, offset;
-  double coeff5, coeff6, coeff7;
   double eng, fwall;
 
-  void lj93(double);
-  void lj126(double);
-  void lj1043(double);
-  void morse(double);
-  void colloid(double, double);
-  void harmonic(double);
+  void tjatjopoulos(double);
 };
 
 }    // namespace LAMMPS_NS

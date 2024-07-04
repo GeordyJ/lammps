@@ -178,7 +178,6 @@ namespace MathSpecial {
 
     return yy;
   }
-
 }    // namespace MathSpecial
 }    // namespace LAMMPS_NS
 
