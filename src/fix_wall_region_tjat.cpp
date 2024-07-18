@@ -152,7 +152,7 @@ void FixWallRegionTjat::init()
   psi6_coeff = psi6_gc * powint(sigma_R, 10); // 10 and 4 from 2n-2
   psi3_coeff = psi3_gc * powint(sigma_R, 4);
   psi6_der1 = 40.5 * powint(R,18);
-  psi6_der2 = 0.493827 * R * R;
+  psi6_der2 = (20. / 40.5) * R * R;
   psi3_der1 = 4.5 * powint(R,6);
   psi3_der2 = 8 * powint(R,8);
 
@@ -194,7 +194,6 @@ void FixWallRegionTjat::post_force(int vflag)
 
   double **x = atom->x;
   double **f = atom->f;
-  double *radius = atom->radius;
   int *mask = atom->mask;
   int nlocal = atom->nlocal;
 
