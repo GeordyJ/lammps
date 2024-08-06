@@ -1101,6 +1101,7 @@ excv
 exe
 executables
 extep
+extractable
 extrema
 extxyz
 exy
@@ -1185,6 +1186,7 @@ flaglog
 flagN
 flagVF
 flang
+flatpak
 fld
 floralwhite
 Florez
@@ -1354,6 +1356,7 @@ Grama
 grana
 granregion
 graphene
+Gravelle
 Greathouse
 greenyellow
 Greffet
@@ -3079,6 +3082,7 @@ qx
 qy
 qz
 Rackers
+Radeon
 radi
 radialscreened
 radialscreenedspin
