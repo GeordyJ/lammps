@@ -143,7 +143,8 @@ CodeEditor::CodeEditor(QWidget *parent) :
     minimize_comp(new QCompleter(this)), variable_comp(new QCompleter(this)),
     units_comp(new QCompleter(this)), group_comp(new QCompleter(this)),
     varname_comp(new QCompleter(this)), fixid_comp(new QCompleter(this)),
-    compid_comp(new QCompleter(this)), file_comp(new QCompleter(this)), highlight(NO_HIGHLIGHT)
+    compid_comp(new QCompleter(this)), file_comp(new QCompleter(this)),
+    extra_comp(new QCompleter(this)), highlight(NO_HIGHLIGHT)
 {
     help_action = new QShortcut(QKeySequence::fromString("Ctrl+?"), parent);
     connect(help_action, &QShortcut::activated, this, &CodeEditor::get_help);
@@ -180,6 +181,7 @@ CodeEditor::CodeEditor(QWidget *parent) :
     COMPLETER_SETUP(fixid_comp);
     COMPLETER_SETUP(compid_comp);
     COMPLETER_SETUP(file_comp);
+    COMPLETER_SETUP(extra_comp);
 #undef COMPLETER_SETUP
 
     // initialize help system
@@ -216,7 +218,10 @@ CodeEditor::CodeEditor(QWidget *parent) :
         help_index.close();
     }
 
+    setBackgroundRole(QPalette::Light);
     lineNumberArea = new LineNumberArea(this);
+    lineNumberArea->setBackgroundRole(QPalette::Dark);
+    lineNumberArea->setAutoFillBackground(true);
     connect(this, &CodeEditor::blockCountChanged, this, &CodeEditor::updateLineNumberAreaWidth);
     connect(this, &CodeEditor::updateRequest, this, &CodeEditor::updateLineNumberArea);
     updateLineNumberAreaWidth(0);
@@ -248,6 +253,7 @@ CodeEditor::~CodeEditor()
     delete fixid_comp;
     delete compid_comp;
     delete file_comp;
+    delete extra_comp;
 }
 
 int CodeEditor::lineNumberAreaWidth()
@@ -396,6 +402,7 @@ COMPLETER_INIT_FUNC(integrate, Integrate)
 COMPLETER_INIT_FUNC(minimize, Minimize)
 COMPLETER_INIT_FUNC(variable, Variable)
 COMPLETER_INIT_FUNC(units, Units)
+COMPLETER_INIT_FUNC(extra, Extra)
 
 #undef COMPLETER_INIT_FUNC
 
@@ -665,7 +672,7 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
         if (block.isVisible() && bottom >= event->rect().top()) {
             QString number = QString::number(blockNumber + 1) + " ";
             if ((highlight == NO_HIGHLIGHT) || (blockNumber != std::abs(highlight))) {
-                painter.setPen(Qt::black);
+                painter.setPen(palette().color(QPalette::WindowText));
             } else {
                 number = QString(">") + QString::number(blockNumber + 1) + "<";
                 if (highlight < 0)
@@ -770,10 +777,25 @@ void CodeEditor::contextMenuEvent(QContextMenuEvent *event)
             QString word = line.mid(begin, end - begin).trimmed();
             QFileInfo fi(word);
             if (fi.exists() && fi.isFile()) {
-                auto *action = menu->addAction(QString("View file '%1'").arg(word));
-                action->setIcon(QIcon(":/icons/document-open.png"));
-                action->setData(word);
-                connect(action, &QAction::triggered, this, &CodeEditor::view_file);
+                // check if file is a LAMMPS restart
+                char magic[16] = "               ";
+                QFile file(word);
+                if (file.open(QIODevice::ReadOnly)) {
+                    QDataStream in(&file);
+                    in.readRawData(magic, 16);
+                    file.close();
+                }
+                if (strcmp(magic, LAMMPS_MAGIC) == 0) {
+                    auto *action = menu->addAction(QString("Inspect restart file '%1'").arg(word));
+                    action->setIcon(QIcon(":/icons/document-open.png"));
+                    action->setData(word);
+                    connect(action, &QAction::triggered, this, &CodeEditor::inspect_file);
+                } else {
+                    auto *action = menu->addAction(QString("View file '%1'").arg(word));
+                    action->setIcon(QIcon(":/icons/document-open.png"));
+                    action->setData(word);
+                    connect(action, &QAction::triggered, this, &CodeEditor::view_file);
+                }
             }
         }
     }
@@ -1036,6 +1058,8 @@ void CodeEditor::runCompletion()
             current_comp = fixid_comp;
         else if (selected.startsWith("F_"))
             current_comp = fixid_comp;
+        else if ((words[0] == "read_data") && selected.startsWith("ex"))
+            current_comp = extra_comp;
         else if ((words[0] == "fitpod") || (words[0] == "molecule")) {
             if (selected.contains('/')) {
                 if (popup && popup->isVisible()) popup->hide();
@@ -1084,6 +1108,8 @@ void CodeEditor::runCompletion()
             current_comp = fixid_comp;
         else if (selected.startsWith("F_"))
             current_comp = fixid_comp;
+        else if ((words[0] == "read_data") && selected.startsWith("ex"))
+            current_comp = extra_comp;
 
         if (current_comp) {
             current_comp->setCompletionPrefix(words[3].c_str());
@@ -1113,6 +1139,8 @@ void CodeEditor::runCompletion()
             current_comp = fixid_comp;
         else if (selected.startsWith("F_"))
             current_comp = fixid_comp;
+        else if ((words[0] == "read_data") && selected.startsWith("ex"))
+            current_comp = extra_comp;
 
         if (current_comp) {
             current_comp->setCompletionPrefix(selected);
@@ -1246,11 +1274,20 @@ void CodeEditor::open_url()
     QDesktopServices::openUrl(QUrl(act->data().toString()));
 }
 
+// forward requests to view or inspect files to the corresponding LammpsGui methods
+
 void CodeEditor::view_file()
 {
-    auto *act    = qobject_cast<QAction *>(sender());
-    auto *viewer = new FileViewer(act->data().toString());
-    viewer->show();
+    auto *act     = qobject_cast<QAction *>(sender());
+    auto *guimain = qobject_cast<LammpsGui *>(parent());
+    guimain->view_file(act->data().toString());
+}
+
+void CodeEditor::inspect_file()
+{
+    auto *act     = qobject_cast<QAction *>(sender());
+    auto *guimain = qobject_cast<LammpsGui *>(parent());
+    guimain->inspect_file(act->data().toString());
 }
 
 // Local Variables:
