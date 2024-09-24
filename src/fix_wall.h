@@ -46,7 +46,7 @@ class FixWall : public Fix {
   virtual void wall_particle(int, int, double) = 0;
 
  protected:
-  double epsilon[6], sigma[6], alpha[6], cutoff[6], rho_s[6], n_layers[6];
+  double epsilon[6], sigma[6], alpha[6], cutoff[6], rho_s[6], n_layers[6], delta_layer[6];
   double ewall[7], ewall_all[7];
   double xscale, yscale, zscale;
   int estyle[6], sstyle[6], astyle[6], wstyle[6];

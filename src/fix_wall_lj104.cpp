@@ -22,6 +22,8 @@
 #include "math_const.h"
 #include "math_special.h"
 
+#include <iostream>
+
 using namespace LAMMPS_NS;
 using MathConst::MY_2PI;
 using MathSpecial::powint;
@@ -56,7 +58,7 @@ void FixWallLJ104::precompute(int m)
 
 void FixWallLJ104::wall_particle(int m, int which, double coord)
 {
-  double delta, rinv, r2inv, r4inv, r5inv, r10inv, r11inv, fwall;
+  double delta, delta_104, rinv, r2inv, r4inv, r5inv, r10inv, r11inv, fwall;
   double vn;
 
   double **x = atom->x;
@@ -76,17 +78,23 @@ void FixWallLJ104::wall_particle(int m, int which, double coord)
         delta = coord - x[i][dim];
       if (delta <= 0.0) continue;
       if (delta > cutoff[m]) continue;
-      rinv = 1.0 / delta;
-      r2inv = rinv * rinv;
-      r4inv = r2inv * r2inv;
-      r5inv = r4inv * rinv;
-      r10inv = r5inv * r5inv;
-      r11inv = r10inv * rinv;
+      fwall = 0;
+      for (int j = 0; j < n_layers[m]; j++) {
+        delta_104 = delta + j * delta_layer[m];
+        // std::cout << "lj104: delta_104 = " << delta_104 << ", for layer j = "<< j << std::endl;
+        rinv = 1.0 / delta_104;
+        r2inv = rinv * rinv;
+        r4inv = r2inv * r2inv;
+        r5inv = r4inv * rinv;
+        r10inv = r5inv * r5inv;
+        r11inv = r10inv * rinv;
 
-      fwall = - side *
-          (coeff4[m] * r11inv + coeff5[m] * r5inv);
+        fwall += - side *
+            (coeff4[m] * r11inv + coeff5[m] * r5inv);
+        ewall[0] += (coeff2[m] * r10inv - coeff3[m] * r4inv) - offset[m];
+      }
+
       f[i][dim] -= fwall;
-      ewall[0] += (coeff2[m] * r10inv - coeff3[m] * r4inv) - offset[m];
       ewall[m + 1] += fwall;
       if (evflag) {
         if (side < 0)
