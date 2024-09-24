@@ -71,9 +71,9 @@ void FixWallLJ104::wall_particle(int m, int which, double coord)
   for (int i = 0; i < nlocal; i++)
     if (mask[i] & groupbit) {
       if (side < 0)
-        delta = x[i][dim] - coord;
-      else
         delta = coord - x[i][dim];
+      else
+        delta = x[i][dim] - coord;
       if (delta <= 0.0) continue;
       if (delta > cutoff[m]) continue;
       rinv = 1.0 / delta;
