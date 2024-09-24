@@ -20,6 +20,7 @@
 #include "modify.h"
 #include "respa.h"
 #include "update.h"
+#include "utils.h"
 #include "variable.h"
 
 #include <cstring>
@@ -144,6 +145,16 @@ FixWall::FixWall(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg), nwall
           sstyle[nwall] = CONSTANT;
         }
         cutoff[nwall] = utils::numeric(FLERR, arg[iarg + 4], false, lmp);
+      }
+      if (utils::strmatch(style, "^wall/lj104")) {
+        wantargs += 2;
+        if (utils::is_double(arg[iarg + 5]) && utils::is_integer(arg[iarg + 6])) {
+          rho_s[nwall] = utils::numeric(FLERR, arg[iarg + 5], false, lmp);
+          n_layers[nwall] = utils::inumeric(FLERR, arg[iarg + 6], false, lmp);
+        } else {
+          error->all(FLERR, "Illegal fix {} command, invalid rho_s (double) '{}' and n_layers (int) '{}'\n", style, arg[iarg + 5], arg[iarg + 6]);
+        }
+        error->warning(FLERR,"fix wall/lj104 by Geordy Jomon. This is to verify the arguments...\nsigma {}, epsilon {}, cutoff {}, rho_s {}, n_layers {}\n", sigma[nwall], epsilon[nwall], cutoff[nwall], rho_s[nwall], n_layers[nwall]);
       }
       nwall++;
       iarg += wantargs;
