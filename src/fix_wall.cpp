@@ -155,7 +155,6 @@ FixWall::FixWall(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg), nwall
         } else {
           error->all(FLERR, "Illegal fix {} command, invalid rho_s (double) '{}', n_layers (int) '{}', or delta_layers (double) '{}'\n", style, arg[iarg + 5], arg[iarg + 6], arg[iarg + 7]);
         }
-        error->warning(FLERR,"fix wall/lj104 by Geordy Jomon. This is to verify the arguments...\nsigma {}, epsilon {}, cutoff {}, rho_s {}, n_layers {}, and delta_layers {}\n", sigma[nwall], epsilon[nwall], cutoff[nwall], rho_s[nwall], n_layers[nwall], delta_layer[nwall]);
       }
       nwall++;
       iarg += wantargs;
