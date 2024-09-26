@@ -13,7 +13,20 @@
 
 /* ----------------------------------------------------------------------
    Contributing author: Jonathan Lee (Sandia)
-   Modified to add the 10-4 potential by Geordy Jomon (gj82@njit.edu)
+   Modified to add the LJ 10-4 potential by Geordy Jomon (gj82@njit.edu)
+   This LJ 10-4 Potential is based on the following paper-
+    Siderius, D. W.; Gelb, L. D.
+    Extension of the Steele 10-4-3 Potential for Adsorption Calculations in
+    Cylindrical, Spherical, and Other Pore Geometries. J. Chem. Phys. 2011,
+    135 (8), 084703. https://doi.org/10.1063/1.3626804.
+ 
+    NOTES:
+    - This potential is extended for multiple layers.
+    - This requires three additonal parameters (See paper for details)-
+      - The parameters for the LJ 1043 potential followed by,
+      - rho_s: The surface density parameter 
+      - n_layers: The number of layers
+      - delta_layer: The distance between each layer.
 ------------------------------------------------------------------------- */
 
 #include "fix_wall_lj104.h"
@@ -21,8 +34,6 @@
 #include "atom.h"
 #include "math_const.h"
 #include "math_special.h"
-
-#include <iostream>
 
 using namespace LAMMPS_NS;
 using MathConst::MY_2PI;
@@ -79,9 +90,8 @@ void FixWallLJ104::wall_particle(int m, int which, double coord)
       if (delta <= 0.0) continue;
       if (delta > cutoff[m]) continue;
       fwall = 0;
-      for (int j = 0; j < n_layers[m]; j++) {
-        delta_104 = delta + j * delta_layer[m];
-        // std::cout << "lj104: delta_104 = " << delta_104 << ", for layer j = "<< j << std::endl;
+      for (int layer_index = 0; layer_index < n_layers[m]; layer_index++) {
+        delta_104 = delta + layer_index * delta_layer[m];
         rinv = 1.0 / delta_104;
         r2inv = rinv * rinv;
         r4inv = r2inv * r2inv;

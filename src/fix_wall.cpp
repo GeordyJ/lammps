@@ -188,6 +188,10 @@ FixWall::FixWall(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg), nwall
   for (int m = 0; m < nwall; m++) {
     if (cutoff[m] <= 0.0)
       error->all(FLERR, "Fix {} cutoff <= 0.0 for {} wall", style, wallpos[wallwhich[m]]);
+    if (n_layers[m] <= 0.0)
+      error->all(FLERR, "Fix {} n_layers <= 0.0 for {} wall", style, wallpos[wallwhich[m]]);
+    if (delta_layer[m] < 0.0)
+      error->all(FLERR, "Fix {} delta_layer < 0.0 for {} wall", style, wallpos[wallwhich[m]]);
   }
 
   for (int m = 0; m < nwall; m++)
