@@ -13,7 +13,7 @@
 ------------------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------------
-  Contributing authors: Martin Svoboda (ICPF, UJEP), Martin Lísal (ICPF, UJEP)
+  Contributing authors: Martin Svoboda (ICPF, UJEP), Martin Lisal (ICPF, UJEP)
 ------------------------------------------------------------------------- */
 
 #include "pair_dpd_ext_tstat.h"
@@ -53,6 +53,10 @@ void PairDPDExtTstat::compute(int eflag, int vflag)
   int *ilist,*jlist,*numneigh,**firstneigh;
 
   ev_init(eflag,vflag);
+
+  // precompute random force scaling factors
+
+  for (int i = 0; i < 4; ++i) special_sqrt[i] = sqrt(force->special_lj[i]);
 
   // adjust sigma if target T is changing
 
