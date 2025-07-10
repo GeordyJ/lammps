@@ -135,7 +135,7 @@ void PairGranular::compute(int eflag, int vflag)
   if (fix_rigid && neighbor->ago == 0) {
     int tmp;
     int *body = (int *) fix_rigid->extract("body",tmp);
-    auto mass_body = (double *) fix_rigid->extract("masstotal",tmp);
+    auto *mass_body = (double *) fix_rigid->extract("masstotal",tmp);
     if (atom->nmax > nmax) {
       memory->destroy(mass_rigid);
       nmax = atom->nmax;
@@ -334,7 +334,7 @@ void PairGranular::coeff(int narg, char **arg)
   double cutoff_one = -1;
 
   if (narg < 3)
-    error->all(FLERR,"Incorrect args for pair coefficients");
+    error->all(FLERR,"Incorrect args for pair coefficients" + utils::errorurl(21));
 
   if (!allocated) allocate();
 
@@ -397,7 +397,7 @@ void PairGranular::coeff(int narg, char **arg)
   // If there are > ntype^2 models, delete unused models
   if (nmodels == maxmodels) prune_models();
 
-  if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients");
+  if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients" + utils::errorurl(21));
 }
 
 /* ----------------------------------------------------------------------
@@ -422,7 +422,7 @@ void PairGranular::init_style()
 
   // allocate history and aggregate model information
   class GranularModel* model;
-  double nsvector_total;
+  int nsvector_total;
   extra_svector = 0;
   int size_max[NSUBMODELS] = {0};
   for (int n = 0; n < nmodels; n++) {
@@ -559,9 +559,9 @@ double PairGranular::init_one(int i, int j)
 
   if (setflag[i][j] == 0) {
 
-    models_list[nmodels] = new GranularModel(lmp);
+    model = new GranularModel(lmp);
+    models_list[nmodels] = model;
     types_indices[i][j] = nmodels;
-    model = models_list[nmodels];
 
     nmodels += 1;
     if (nmodels == maxmodels) prune_models();

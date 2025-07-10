@@ -26,6 +26,7 @@
 #include "comm.h"
 #include "error.h"
 #include "force.h"
+#include "info.h"
 #include "memory.h"
 #include "neigh_list.h"
 #include "neighbor.h"
@@ -247,8 +248,8 @@ void PairDispersionD3::read_c6ab(int *atomic_numbers, int ntypes)
   for (int i = 0; i < N_PARS_ROWS; i++) {
     const double ref_c6 = c6ab_table[i][0];
 
-    int atom_number_1 = std::round(c6ab_table[i][1]);
-    int atom_number_2 = std::round(c6ab_table[i][2]);
+    int atom_number_1 = (int)std::round(c6ab_table[i][1]);
+    int atom_number_2 = (int)std::round(c6ab_table[i][2]);
 
     set_limit_in_pars_array(atom_number_1, atom_number_2, grid_i, grid_j);
 
@@ -306,7 +307,7 @@ void PairDispersionD3::coeff(int narg, char **arg)
     }
   }
 
-  if (count == 0) error->all(FLERR, "Incorrect args for pair coefficients");
+  if (count == 0) error->all(FLERR, "Incorrect args for pair coefficients" + utils::errorurl(21));
 
   for (int i = 1; i <= ntypes; i++) {
     r2r4[i] = r2r4_ref[atomic_numbers[i - 1]];
@@ -375,7 +376,7 @@ void PairDispersionD3::calc_coordination_number()
 
       double rr = sqrt(rsq);
       double rcov_ij = (rcov[itype] + rcov[jtype]) * autoang;
-      double cn_ij = 1.0f / (1.0f + expf(-K1 * ((rcov_ij / rr) - 1.0f)));
+      double cn_ij = 1.0 / (1.0 + exp(-K1 * ((rcov_ij / rr) - 1.0)));
 
       // update coordination number
       cn[i] += cn_ij;
@@ -402,7 +403,7 @@ double *PairDispersionD3::get_dC6(int iat, int jat, double cni, double cnj)
   double expterm, term;
   double num, den, d_num_i, d_num_j, d_den_i, d_den_j;
 
-  c6mem = -1.0e20f, r_save = 1.0e20f;
+  c6mem = -1.0e20, r_save = 1.0e20;
   num = 0;
   den = 0;
   d_num_i = 0;
@@ -508,7 +509,7 @@ void PairDispersionD3::compute(int eflag, int vflag)
       if (rsq < cutsq[type[i]][type[j]]) {
 
         double r = sqrt(rsq);
-        double r2inv = 1.0f / rsq;
+        double r2inv = 1.0 / rsq;
         double r6inv = r2inv * r2inv * r2inv;
         double r8inv = r2inv * r2inv * r2inv * r2inv;
         double r10inv = r2inv * r2inv * r2inv * r2inv * r2inv;
@@ -532,9 +533,9 @@ void PairDispersionD3::compute(int eflag, int vflag)
             double r0 = r / r0ab[type[i]][type[j]];
 
             t6 = pow(rs6 / r0, alpha6);
-            damp6 = 1.0f / (1.0f + 6.0f * t6);
+            damp6 = 1.0 / (1.0 + 6.0 * t6);
             t8 = pow(rs8 / r0, alpha8);
-            damp8 = 1.0f / (1.0f + 6.0f * t8);
+            damp8 = 1.0 / (1.0 + 6.0 * t8);
 
             e6 = C6 * damp6 * r6inv;
             e8 = C8 * damp8 * r8inv;
@@ -543,7 +544,7 @@ void PairDispersionD3::compute(int eflag, int vflag)
             tmp8 = 8 * s8 * C8 * r10inv * damp8;
 
             fpair1 = -tmp6 - tmp8;
-            fpair2 = tmp6 * alpha6 * t6 * damp6 + (3.0f / 4) * tmp8 * alpha8 * t8 * damp8;
+            fpair2 = tmp6 * alpha6 * t6 * damp6 + (3.0 / 4.0) * tmp8 * alpha8 * t8 * damp8;
 
             fpair = fpair1 + fpair2;
             fpair *= factor_lj;
@@ -554,9 +555,9 @@ void PairDispersionD3::compute(int eflag, int vflag)
             double r0 = r0ab[type[i]][type[j]];
 
             t6 = pow((r / (rs6 * r0)) + rs8 * r0, -alpha6);
-            damp6 = 1.0f / (1.0f + 6.0f * t6);
+            damp6 = 1.0 / (1.0 + 6.0 * t6);
             t8 = pow((r / r0) + rs8 * r0, -alpha8);
-            damp8 = 1.0f / (1.0f + 6.0f * t8);
+            damp8 = 1.0 / (1.0 + 6.0 * t8);
 
             e6 = C6 * damp6 * r6inv;
             e8 = C8 * damp8 * r8inv;
@@ -569,7 +570,7 @@ void PairDispersionD3::compute(int eflag, int vflag)
             double fp26 = tmp6 * alpha6 * t6 * damp6 * r / (r + rs6 * rs8 * r0 * r0);
             double fp28 = tmp8 * alpha8 * t8 * damp8 * r / (r + rs8 * r0 * r0);
 
-            fpair2 = fp26 + (3.0f / 4) * fp28;
+            fpair2 = fp26 + (3.0 / 4.0) * fp28;
 
             fpair = fpair1 + fpair2;
             fpair *= factor_lj;
@@ -1420,7 +1421,9 @@ void PairDispersionD3::set_funcpar(std::string &functional_name)
 double PairDispersionD3::init_one(int i, int j)
 {
 
-  if (setflag[i][j] == 0) error->all(FLERR, "All pair coeffs are not set");
+  if (setflag[i][j] == 0)
+    error->all(FLERR, Error::NOLASTLINE,
+               "All pair coeffs are not set. Status:\n" + Info::get_pair_coeff_status(lmp));
 
   r0ab[j][i] = r0ab[i][j];
 

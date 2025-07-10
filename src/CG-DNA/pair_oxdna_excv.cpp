@@ -143,7 +143,7 @@ void PairOxdnaExcv::compute(int eflag, int vflag)
   int newton_pair = force->newton_pair;
   int *alist,*blist,*numneigh,**firstneigh;
 
-  auto avec = dynamic_cast<AtomVecEllipsoid *>(atom->style_match("ellipsoid"));
+  auto *avec = dynamic_cast<AtomVecEllipsoid *>(atom->style_match("ellipsoid"));
   AtomVecEllipsoid::Bonus *bonus = avec->bonus;
   int *ellipsoid = atom->ellipsoid;
 
@@ -503,7 +503,7 @@ void PairOxdnaExcv::coeff(int narg, char **arg)
 {
   int count;
 
-  if (narg != 3 && narg != 11) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/excv");
+  if (narg != 3 && narg != 11) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/excv" + utils::errorurl(21));
   if (!allocated) allocate();
 
   int ilo,ihi,jlo,jhi;
@@ -612,7 +612,7 @@ void PairOxdnaExcv::coeff(int narg, char **arg)
     }
   }
 
-  if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/excv");
+  if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/excv" + utils::errorurl(21));
 
   count = 0;
 
@@ -638,7 +638,7 @@ void PairOxdnaExcv::coeff(int narg, char **arg)
     }
   }
 
-  if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/excv");
+  if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/excv" + utils::errorurl(21));
 
   count = 0;
 
@@ -664,7 +664,7 @@ void PairOxdnaExcv::coeff(int narg, char **arg)
     }
   }
 
-  if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/excv");
+  if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients in oxdna/excv" + utils::errorurl(21));
 
 }
 

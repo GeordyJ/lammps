@@ -569,7 +569,10 @@ TEST(DihedralStyle, kokkos_omp)
 {
     if (!LAMMPS::is_installed_pkg("KOKKOS")) GTEST_SKIP();
     if (test_config.skip_tests.count(test_info_->name())) GTEST_SKIP();
-    if (!Info::has_accelerator_feature("KOKKOS", "api", "openmp")) GTEST_SKIP();
+    // test either OpenMP or Serial
+    if (!Info::has_accelerator_feature("KOKKOS", "api", "serial") &&
+        !Info::has_accelerator_feature("KOKKOS", "api", "openmp"))
+        GTEST_SKIP();
     // if KOKKOS has GPU support enabled, it *must* be used. We cannot test OpenMP only.
     if (Info::has_accelerator_feature("KOKKOS", "api", "cuda") ||
         Info::has_accelerator_feature("KOKKOS", "api", "hip") ||
@@ -579,6 +582,8 @@ TEST(DihedralStyle, kokkos_omp)
     LAMMPS::argv args = {"DihedralStyle", "-log", "none", "-echo", "screen",
                          "-nocite",       "-k",   "on",   "t",     "4",
                          "-sf",           "kk"};
+    // fall back to serial if openmp is not available
+    if (!Info::has_accelerator_feature("KOKKOS", "api", "openmp")) args[9] = "1";
 
     ::testing::internal::CaptureStdout();
     LAMMPS *lmp = nullptr;
@@ -742,6 +747,47 @@ TEST(DihedralStyle, numdiff)
         if (print_stats)
             std::cerr << "numdiff  stats: " << stats << " epsilon: " << epsilon << std::endl;
     }
+    if (!verbose) ::testing::internal::CaptureStdout();
+    cleanup_lammps(lmp, test_config);
+    if (!verbose) ::testing::internal::GetCapturedStdout();
+}
+
+TEST(DihedralStyle, extract)
+{
+    if (test_config.skip_tests.count(test_info_->name())) GTEST_SKIP();
+
+    LAMMPS::argv args = {"DihedralStyle", "-log", "none", "-echo", "screen", "-nocite"};
+
+    if (!verbose) ::testing::internal::CaptureStdout();
+    LAMMPS *lmp = nullptr;
+    try {
+        lmp = init_lammps(args, test_config, true);
+    } catch (std::exception &e) {
+        if (!verbose) ::testing::internal::GetCapturedStdout();
+        FAIL() << e.what();
+    }
+    if (!verbose) ::testing::internal::GetCapturedStdout();
+
+    if (!lmp) {
+        std::cerr << "One or more prerequisite styles are not available "
+                     "in this LAMMPS configuration:\n";
+        for (auto prerequisite : test_config.prerequisites) {
+            std::cerr << prerequisite.first << "_style " << prerequisite.second << "\n";
+        }
+        GTEST_SKIP();
+    }
+
+    auto *dihedral = lmp->force->dihedral;
+    void *ptr      = nullptr;
+    int dim        = 0;
+    for (auto extract : test_config.extract) {
+        ptr = dihedral->extract(extract.first.c_str(), dim);
+        EXPECT_NE(ptr, nullptr);
+        EXPECT_EQ(dim, extract.second);
+    }
+    ptr = dihedral->extract("does_not_exist", dim);
+    EXPECT_EQ(ptr, nullptr);
+
     if (!verbose) ::testing::internal::CaptureStdout();
     cleanup_lammps(lmp, test_config);
     if (!verbose) ::testing::internal::GetCapturedStdout();

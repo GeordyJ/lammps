@@ -28,6 +28,7 @@
 #include "fix_rheo.h"
 #include "fix_rheo_pressure.h"
 #include "force.h"
+#include "info.h"
 #include "math_extra.h"
 #include "memory.h"
 #include "modify.h"
@@ -79,7 +80,7 @@ void PairRHEO::compute(int eflag, int vflag)
   int i, j, a, b, ii, jj, inum, jnum, itype, jtype;
   int pair_force_flag, pair_rho_flag, pair_avisc_flag;
   int fluidi, fluidj;
-  double xtmp, ytmp, ztmp, wp, Ti, Tj, dT, csq_ave, cs_ave;
+  double xtmp, ytmp, ztmp, wp, Ti, Tj, dT, cs_ave;
   double rhoi, rhoj, rho0i, rho0j, voli, volj, Pi, Pj, etai, etaj, kappai, kappaj, csqi, csqj;
   double eta_ave, kappa_ave, dT_prefactor;
   double mu, q, fp_prefactor, drho_damp, fmag, psi_ij, Fij;
@@ -114,7 +115,7 @@ void PairRHEO::compute(int eflag, int vflag)
 
   double **fp_store, *chi;
   if (compute_interface) {
-    fp_store = compute_interface->fp_store;
+    fp_store = atom->darray[compute_interface->index_fp_store];
     chi = compute_interface->chi;
 
     for (i = 0; i < atom->nmax; i++) {
@@ -188,11 +189,10 @@ void PairRHEO::compute(int eflag, int vflag)
         if (!variable_csq) {
           cs_ave = 0.5 * (cs[itype] + cs[jtype]);
         } else {
-          csqi = fix_pressure->calc_csq(rhoi, i);
-          csqj = fix_pressure->calc_csq(rhoj, j);
+          csqi = fix_pressure->calc_csq(rho[i], i);
+          csqj = fix_pressure->calc_csq(rho[j], j);
           cs_ave = 0.5 * (sqrt(csqi) + sqrt(csqj));
         }
-        csq_ave = cs_ave * cs_ave;
 
         pair_rho_flag = 0;
         pair_force_flag = 0;
@@ -230,7 +230,7 @@ void PairRHEO::compute(int eflag, int vflag)
             Pj = fix_pressure->calc_pressure(rhoj, j);
 
             if ((chi[j] > 0.9) && (r < (cutk * 0.5)))
-              fmag = (chi[j] - 0.9) * (cutk * 0.5 - r) * rho0j * csq_ave * cutk * rinv;
+              fmag = (chi[j] - 0.9) * (cutk * 0.5 - r) * rho0j * cs_ave * cs_ave * cutk * rinv;
 
           } else if ((!fluidi) && fluidj) {
             compute_interface->correct_v(vi, vj, i, j);
@@ -238,7 +238,7 @@ void PairRHEO::compute(int eflag, int vflag)
             Pi = fix_pressure->calc_pressure(rhoi, i);
 
             if (chi[i] > 0.9 && r < (cutk * 0.5))
-              fmag = (chi[i] - 0.9) * (cutk * 0.5 - r) * rho0i * csq_ave * cutk * rinv;
+              fmag = (chi[i] - 0.9) * (cutk * 0.5 - r) * rho0i * cs_ave * cs_ave * cutk * rinv;
 
           } else if ((!fluidi) && (!fluidj)) {
             rhoi = rho0i;
@@ -250,7 +250,6 @@ void PairRHEO::compute(int eflag, int vflag)
             csqi = fix_pressure->calc_csq(rhoi, i);
             csqj = fix_pressure->calc_csq(rhoj, j);
             cs_ave = 0.5 * (sqrt(csqi) + sqrt(csqj));
-            csq_ave = cs_ave * cs_ave;
           }
         }
 
@@ -451,7 +450,7 @@ void PairRHEO::settings(int narg, char **arg)
 
 void PairRHEO::coeff(int narg, char **arg)
 {
-  if (narg != 2) error->all(FLERR, "Incorrect number of args for pair_style rheo coefficients");
+  if (narg != 2) error->all(FLERR, "Incorrect args for pair coefficients" + utils::errorurl(21));
   if (!allocated) allocate();
 
   int ilo, ihi, jlo, jhi;
@@ -466,7 +465,7 @@ void PairRHEO::coeff(int narg, char **arg)
     }
   }
 
-  if (count == 0) error->all(FLERR, "Incorrect args for pair rheo coefficients");
+  if (count == 0) error->all(FLERR, "Incorrect args for pair coefficients" + utils::errorurl(21));
 }
 
 /* ----------------------------------------------------------------------
@@ -527,7 +526,9 @@ void PairRHEO::setup()
 
 double PairRHEO::init_one(int i, int j)
 {
-  if (setflag[i][j] == 0) error->all(FLERR, "All pair rheo coeffs are not set");
+  if (setflag[i][j] == 0)
+    error->all(FLERR, Error::NOLASTLINE, "All pair rheo coeffs are not set. Status:\n"
+               + Info::get_pair_coeff_status(lmp));
 
   return cutk;
 }
@@ -536,7 +537,7 @@ double PairRHEO::init_one(int i, int j)
 
 int PairRHEO::pack_reverse_comm(int n, int first, double *buf)
 {
-  double **fp_store = compute_interface->fp_store;
+  double **fp_store = atom->darray[compute_interface->index_fp_store];
   int m = 0;
   int last = first + n;
   for (int i = first; i < last; i++) {
@@ -552,7 +553,7 @@ int PairRHEO::pack_reverse_comm(int n, int first, double *buf)
 
 void PairRHEO::unpack_reverse_comm(int n, int *list, double *buf)
 {
-  double **fp_store = compute_interface->fp_store;
+  double **fp_store = atom->darray[compute_interface->index_fp_store];
   int m = 0;
   for (int i = 0; i < n; i++) {
     int j = list[i];

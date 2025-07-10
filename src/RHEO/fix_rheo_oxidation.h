@@ -29,7 +29,7 @@ namespace LAMMPS_NS {
 class FixRHEOOxidation : public Fix {
  public:
   FixRHEOOxidation(class LAMMPS *, int, char **);
-  ~FixRHEOOxidation() override;
+
   int setmask() override;
   void init() override;
   void init_list(int, class NeighList *) override;
@@ -39,11 +39,11 @@ class FixRHEOOxidation : public Fix {
   void post_force(int) override;
   int pack_forward_comm(int, int *, double *, int, int *) override;
   void unpack_forward_comm(int, int, double *) override;
-  int *nbond;
   double rsurf, cut;
+  int index_nb;
 
  private:
-  int btype, index_nb;
+  int btype;
   double cutsq;
 
   class NeighList *list;

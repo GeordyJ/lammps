@@ -11,6 +11,10 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
+/* ----------------------------------------------------------------------
+   Contributing author: Joel Clemmer (SNL)
+------------------------------------------------------------------------- */
+
 #include "bond_bpm_spring.h"
 
 #include "atom.h"
@@ -22,6 +26,7 @@
 #include "memory.h"
 #include "modify.h"
 #include "neighbor.h"
+#include "update.h"
 
 #include <cmath>
 #include <cstring>
@@ -124,7 +129,7 @@ void BondBPMSpring::store_data()
       type = bond_type[i][m];
 
       //Skip if bond was turned off
-      if (type < 0) continue;
+      if (type <= 0) continue;
 
       // map to find index n
       j = atom->map(atom->bond_atom[i][m]);
@@ -135,7 +140,7 @@ void BondBPMSpring::store_data()
       delz = x[i][2] - x[j][2];
 
       // Get closest image in case bonded with ghost
-      domain->minimum_image(delx, dely, delz);
+      domain->minimum_image(FLERR, delx, dely, delz);
       r = sqrt(delx * delx + dely * dely + delz * delz);
 
       fix_bond_history->update_atom_value(i, m, 0, r);
@@ -149,7 +154,7 @@ void BondBPMSpring::store_data()
 
 void BondBPMSpring::compute(int eflag, int vflag)
 {
-  int i, bond_change_flag;
+  int bond_change_flag = 0;
   double *vol0, *vol;
 
   if (volume_flag) {
@@ -160,7 +165,7 @@ void BondBPMSpring::compute(int eflag, int vflag)
     if (nmax < atom->nmax) {
       nmax = atom->nmax;
       memory->create(dvol0, nmax, "bond/bpm/spring:dvol0");
-      for (i = 0; i < nmax; i++) dvol0[i] = 0.0;
+      for (int i = 0; i < nmax; i++) dvol0[i] = 0.0;
     }
   }
 
@@ -173,7 +178,7 @@ void BondBPMSpring::compute(int eflag, int vflag)
       bond_change_flag = calculate_vol();
 
       // zero dvol0, not needed since vol0 just calculated
-      for (i = 0; i < nmax; i++) dvol0[i] = 0.0;
+      for (int i = 0; i < nmax; i++) dvol0[i] = 0.0;
     }
   }
 
@@ -197,7 +202,7 @@ void BondBPMSpring::compute(int eflag, int vflag)
 
   int i1, i2, itmp, n, type;
   double delx, dely, delz, delvx, delvy, delvz;
-  double e, rsq, r, r0, rinv, smooth, fbond, dot;
+  double e, rsq, r, r0, rinv, smooth, fbond, ebond, dot;
   double vol_sum, vol0_sum, vol_temp;
 
   ev_init(eflag, vflag);
@@ -214,6 +219,7 @@ void BondBPMSpring::compute(int eflag, int vflag)
   double invdim = 1.0 / dim;
 
   double **bondstore = fix_bond_history->bondstore;
+  const bool allow_breaks = (update->setupflag == 0) && break_flag;
 
   for (n = 0; n < nbondlist; n++) {
 
@@ -245,7 +251,7 @@ void BondBPMSpring::compute(int eflag, int vflag)
     r = sqrt(rsq);
     e = (r - r0) / r0;
 
-    if ((fabs(e) > ecrit[type]) && break_flag) {
+    if ((fabs(e) > ecrit[type]) && allow_breaks) {
       bondlist[n][2] = 0;
       process_broken(i1, i2);
 
@@ -264,7 +270,9 @@ void BondBPMSpring::compute(int eflag, int vflag)
     if (normalize_flag)
       fbond = -k[type] * e;
     else
-      fbond = k[type] * (r0 - r);
+      fbond = -k[type] * (r - r0);
+
+    if (eflag) ebond = -0.5 * fbond * (r - r0);
 
     if (volume_flag) {
       vol_sum = vol[i1] + vol[i2];
@@ -300,7 +308,7 @@ void BondBPMSpring::compute(int eflag, int vflag)
       f[i2][2] -= delz * fbond;
     }
 
-    if (evflag) ev_tally(i1, i2, nlocal, newton_bond, 0.0, fbond, delx, dely, delz);
+    if (evflag) ev_tally(i1, i2, nlocal, newton_bond, ebond, fbond, delx, dely, delz);
   }
 
   // Update vol0 to account for any broken bonds
@@ -399,7 +407,7 @@ void BondBPMSpring::allocate()
 void BondBPMSpring::coeff(int narg, char **arg)
 {
   if ((!volume_flag && narg != 4) || (volume_flag && narg != 5))
-    error->all(FLERR, "Incorrect args for bond coefficients");
+    error->all(FLERR, "Incorrect args for bond coefficients" + utils::errorurl(21));
   if (!allocated) allocate();
 
   int ilo, ihi;
@@ -424,7 +432,7 @@ void BondBPMSpring::coeff(int narg, char **arg)
     if (1.0 + ecrit[i] > max_stretch) max_stretch = 1.0 + ecrit[i];
   }
 
-  if (count == 0) error->all(FLERR, "Incorrect args for bond coefficients");
+  if (count == 0) error->all(FLERR, "Incorrect args for bond coefficients" + utils::errorurl(21));
 }
 
 /* ----------------------------------------------------------------------
@@ -574,7 +582,9 @@ double BondBPMSpring::single(int type, double rsq, int i, int j, double &fforce)
   if (normalize_flag)
     fforce = -k[type] * e;
   else
-    fforce = k[type] * (r0 - r);
+    fforce = -k[type] * (r - r0);
+
+  double ebond = -0.5 * fforce * (r - r0);
 
   if (volume_flag) {
     double invdim = 1.0 / domain->dimension;
@@ -610,17 +620,16 @@ double BondBPMSpring::single(int type, double rsq, int i, int j, double &fforce)
 
   svector[0] = r0;
 
-  return 0.0;
+  return ebond;
 }
 
 /* ---------------------------------------------------------------------- */
 
 int BondBPMSpring::pack_reverse_comm(int n, int first, double *buf)
 {
-  int i, m, last;
-  m = 0;
-  last = first + n;
-  for (i = first; i < last; i++) buf[m++] = vol_current[i];
+  int m = 0;
+  int last = first + n;
+  for (int i = first; i < last; i++) buf[m++] = vol_current[i];
   return m;
 }
 
@@ -628,10 +637,9 @@ int BondBPMSpring::pack_reverse_comm(int n, int first, double *buf)
 
 void BondBPMSpring::unpack_reverse_comm(int n, int *list, double *buf)
 {
-  int i, j, m;
-  m = 0;
-  for (i = 0; i < n; i++) {
-    j = list[i];
+  int m = 0;
+  for (int i = 0; i < n; i++) {
+    int j = list[i];
     vol_current[j] += buf[m++];
   }
 }
@@ -640,10 +648,9 @@ void BondBPMSpring::unpack_reverse_comm(int n, int *list, double *buf)
 
 int BondBPMSpring::pack_forward_comm(int n, int *list, double *buf, int /*pbc_flag*/, int * /*pbc*/)
 {
-  int i, j, m;
-  m = 0;
-  for (i = 0; i < n; i++) {
-    j = list[i];
+  int m = 0;
+  for (int i = 0; i < n; i++) {
+    int j = list[i];
     buf[m++] = vol_current[j];
   }
   return m;
@@ -653,8 +660,7 @@ int BondBPMSpring::pack_forward_comm(int n, int *list, double *buf, int /*pbc_fl
 
 void BondBPMSpring::unpack_forward_comm(int n, int first, double *buf)
 {
-  int i, m, last;
-  m = 0;
-  last = first + n;
-  for (i = first; i < last; i++) vol_current[i] = buf[m++];
+  int m = 0;
+  int last = first + n;
+  for (int i = first; i < last; i++) vol_current[i] = buf[m++];
 }

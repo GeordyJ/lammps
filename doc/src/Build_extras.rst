@@ -35,6 +35,7 @@ This is the list of packages that may require additional steps.
    :columns: 6
 
    * :ref:`ADIOS <adios>`
+   * :ref:`APIP <apip>`
    * :ref:`ATC <atc>`
    * :ref:`AWPMD <awpmd>`
    * :ref:`COLVARS <colvar>`
@@ -255,11 +256,10 @@ Traditional make
 
 Before building LAMMPS, you must build the GPU library in ``lib/gpu``\ .
 You can do this manually if you prefer; follow the instructions in
-``lib/gpu/README``.  Note that the GPU library uses MPI calls, so you must
-use the same MPI library (or the STUBS library) settings as the main
-LAMMPS code.  This also applies to the ``-DLAMMPS_BIGBIG``\ ,
-``-DLAMMPS_SMALLBIG``\ , or ``-DLAMMPS_SMALLSMALL`` settings in whichever
-Makefile you use.
+``lib/gpu/README``.  Note that the GPU library uses MPI calls, so you
+must use the same MPI library (or the STUBS library) settings as the
+main LAMMPS code.  This also applies to the ``-DLAMMPS_BIGBIG`` or
+``-DLAMMPS_SMALLBIG`` settings in whichever Makefile you use.
 
 You can also build the library in one step from the ``lammps/src`` dir,
 using a command like these, which simply invokes the ``lib/gpu/Install.py``
@@ -612,6 +612,12 @@ They must be specified in uppercase.
    *  - ZEN3
       - HOST
       - AMD Zen3 architecture
+   *  - ZEN4
+      - HOST
+      - AMD Zen4 architecture
+   *  - ZEN5
+      - HOST
+      - AMD Zen5 architecture
    *  - RISCV_SG2042
       - HOST
       - SG2042 (RISC-V) CPUs
@@ -666,6 +672,12 @@ They must be specified in uppercase.
    *  - HOPPER90
       - GPU
       - NVIDIA Hopper generation CC 9.0
+   *  - BLACKWELL100
+      - GPU
+      - NVIDIA Blackwell generation CC 10.0
+   *  - BLACKWELL120
+      - GPU
+      - NVIDIA Blackwell generation CC 12.0
    *  - AMD_GFX906
       - GPU
       - AMD GPU MI50/60
@@ -714,8 +726,11 @@ They must be specified in uppercase.
    *  - INTEL_PVC
       - GPU
       - Intel GPU Ponte Vecchio
+   *  - INTEL_DG2
+      - GPU
+      - Intel GPU DG2
 
-This list was last updated for version 4.5.1 of the Kokkos library.
+This list was last updated for version 4.6.1 of the Kokkos library.
 
 .. tabs::
 
@@ -1267,6 +1282,34 @@ systems.
       .. code-block:: bash
 
          ADIOS2_DIR=path make yes-adios   # path is where ADIOS 2.x is installed
+
+----------
+
+.. _apip:
+
+APIP package
+-----------------------------
+
+The APIP package depends on the library of the
+:ref:`ML-PACE <ml-pace>` package.
+The code for the library can be found
+at: `https://github.com/ICAMS/lammps-user-pace/ <https://github.com/ICAMS/lammps-user-pace/>`_
+
+.. tabs::
+
+   .. tab:: CMake build
+
+      No additional settings are needed besides ``-D PKG_APIP=yes``
+      and ``-D PKG_ML-PACE=yes``.
+      One can use a local version of the ML-PACE library instead of
+      automatically downloading the library as described :ref:`here <ml-pace>`.
+
+
+   .. tab:: Traditional make
+
+      You need to install the ML-PACE package *first* and follow
+      the instructions :ref:`here <ml-pace>` before installing
+      the APIP package.
 
 ----------
 

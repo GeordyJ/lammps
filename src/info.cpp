@@ -34,6 +34,7 @@
 #include "group.h"
 #include "improper.h"
 #include "input.h"
+#include "json.h"
 #include "lmpfftsettings.h"
 #include "modify.h"
 #include "neighbor.h"
@@ -43,7 +44,9 @@
 #include "region.h"
 #include "update.h"
 #include "variable.h"
+#ifndef FMT_STATIC_THOUSANDS_SEPARATOR
 #include "fmt/chrono.h"
+#endif
 
 #include <cctype>
 #include <cmath>
@@ -110,22 +113,23 @@ static const int STYLES = ATOM_STYLES | INTEGRATE_STYLES | MINIMIZE_STYLES
 
 using namespace LAMMPS_NS;
 
-static const char *mapstyles[] = { "none", "array", "hash", "yes" };
+namespace {
+const char * const mapstyles[] = { "none", "array", "hash", "yes" };
+const char * const commstyles[] = { "brick", "tiled" };
+const char * const commlayout[] = { "uniform", "nonuniform", "irregular" };
 
-static const char *commstyles[] = { "brick", "tiled" };
-static const char *commlayout[] = { "uniform", "nonuniform", "irregular" };
-
-static const char bstyles[] = "pfsm";
-
-template<typename ValueType>
-static void print_columns(FILE *fp, std::map<std::string, ValueType> *styles);
+const char bstyles[] = "pfsm";
 
 template<typename ValueType>
-static bool find_style(const LAMMPS *lmp, std::map<std::string, ValueType> *styles,
+void print_columns(FILE *fp, std::map<std::string, ValueType> *styles);
+
+template<typename ValueType>
+bool find_style(const LAMMPS *lmp, std::map<std::string, ValueType> *styles,
                        const std::string &name, bool suffix_check);
 
 template<typename ValueType>
-static std::vector<std::string> get_style_names(std::map<std::string, ValueType> *styles);
+std::vector<std::string> get_style_names(std::map<std::string, ValueType> *styles);
+}
 
 /* ---------------------------------------------------------------------- */
 
@@ -269,8 +273,16 @@ void Info::command(int narg, char **arg)
   if (out == nullptr) return;
 
   fputs("\nInfo-Info-Info-Info-Info-Info-Info-Info-Info-Info-Info\n",out);
+#if defined(FMT_STATIC_THOUSANDS_SEPARATOR)
+  {
+    time_t tv = time(nullptr);
+    struct tm *now = localtime(&tv);
+    utils::print(out, "Printed on {}", asctime(now));
+  }
+#else
   std::tm now = fmt::localtime(std::time(nullptr));
   utils::print(out,"Printed on {}", std::asctime(&now));
+#endif
 
   if (flags & CONFIG) {
     utils::print(out,"\nLAMMPS version: {} / {}\n", lmp->version, lmp->num_ver);
@@ -291,6 +303,7 @@ void Info::command(int narg, char **arg)
     utils::print(out,"\nCompiler: {} with {}\nC++ standard: {}\n",
                platform::compiler_info(),platform::openmp_standard(),platform::cxx_standard());
     fputs(get_fmt_info().c_str(), out);
+    fputs(get_json_info().c_str(), out);
 
     fputs("\nActive compile time flags:\n\n",out);
     if (has_gzip_support()) fputs("-DLAMMPS_GZIP\n",out);
@@ -304,8 +317,6 @@ void Info::command(int narg, char **arg)
     fputs("-DLAMMPS_BIGBIG\n",out);
 #elif defined(LAMMPS_SMALLBIG)
     fputs("-DLAMMPS_SMALLBIG\n",out);
-#else // defined(LAMMPS_SMALLSMALL)
-    fputs("-DLAMMPS_SMALLSMALL\n",out);
 #endif
     if (has_gzip_support()) utils::print(out,"\n{}\n",platform::compress_info());
 
@@ -426,7 +437,7 @@ void Info::command(int narg, char **arg)
     if (atom->q) utils::print(out,"Atoms with per-atom charges\n");
 
     if (force->pair && utils::strmatch(force->pair_style,"^hybrid")) {
-      auto hybrid = dynamic_cast<PairHybrid *>(force->pair);
+      auto *hybrid = dynamic_cast<PairHybrid *>(force->pair);
       utils::print(out,"Hybrid sub-styles:");
       for (int i=0; i < hybrid->nstyles; ++i)
         utils::print(out," {}", hybrid->keywords[i]);
@@ -488,63 +499,11 @@ void Info::command(int narg, char **arg)
     Pair *pair=force->pair;
 
     fputs("\nCoeff status information:\n",out);
-    if (pair) {
-      fputs("\nPair Coeffs:\n",out);
-      for (int i=1; i <= atom->ntypes; ++i)
-        for (int j=i; j <= atom->ntypes; ++j) {
-          utils::print(out,"{:6d} {:6d}:",i,j);
-          if (pair->allocated && pair->setflag[i][j]) fputs(" is set\n",out);
-          else fputs(" is not set\n",out);
-        }
-    }
-    if (force->bond) {
-      Bond *bond=force->bond;
-
-      if (bond) {
-        fputs("\nBond Coeffs:\n",out);
-        for (int i=1; i <= atom->nbondtypes; ++i) {
-          utils::print(out,"{:6d}:",i);
-          if (bond->allocated && bond->setflag[i]) fputs(" is set\n",out);
-          else fputs (" is not set\n",out);
-        }
-      }
-    }
-    if (force->angle) {
-      Angle *angle=force->angle;
-
-      if (angle) {
-        fputs("\nAngle Coeffs:\n",out);
-        for (int i=1; i <= atom->nangletypes; ++i) {
-          utils::print(out,"{:6d}:",i);
-          if (angle->allocated && angle->setflag[i]) fputs(" is set\n",out);
-          else fputs (" is not set\n",out);
-        }
-      }
-    }
-    if (force->dihedral) {
-      Dihedral *dihedral=force->dihedral;
-
-      if (dihedral) {
-        fputs("\nDihedral Coeffs:\n",out);
-        for (int i=1; i <= atom->ndihedraltypes; ++i) {
-          utils::print(out,"{:6d}:",i);
-          if (dihedral->allocated && dihedral->setflag[i]) fputs(" is set\n",out);
-          else fputs (" is not set\n",out);
-        }
-      }
-    }
-    if (force->improper) {
-      Improper *b=force->improper;
-
-      if (b) {
-        fputs("\nImproper Coeffs:\n",out);
-        for (int i=1; i <= atom->nimpropertypes; ++i) {
-          utils::print(out,"{:6d}:",i);
-          if (b->allocated && b->setflag[i]) fputs(" is set\n",out);
-          else fputs (" is not set\n",out);
-        }
-      }
-    }
+    if (pair) utils::print(out,"\nPair coeffs\n{}", get_pair_coeff_status(lmp));
+    if (force->bond) utils::print(out,"\nBond coeffs\n{}", get_bond_coeff_status(lmp));
+    if (force->angle) utils::print(out,"\nAngle coeffs\n{}", get_angle_coeff_status(lmp));
+    if (force->dihedral) utils::print(out,"\nDihedral coeffs\n{}", get_dihedral_coeff_status(lmp));
+    if (force->improper) utils::print(out,"\nImproper coeffs\n{}", get_improper_coeff_status(lmp));
   }
 
   if (flags & GROUPS) {
@@ -562,7 +521,7 @@ void Info::command(int narg, char **arg)
   if (flags & REGIONS) {
     fputs("\nRegion information:\n",out);
     int i=0;
-    for (auto &reg : domain->get_region_list()) {
+    for (const auto &reg : domain->get_region_list()) {
       utils::print(out,"Region[{:3d}]:  {:16}  style = {:16}  side = {}\n",
                  i, std::string(reg->id)+',', std::string(reg->style)+',',
                  reg->interior ? "in" : "out");
@@ -627,14 +586,14 @@ void Info::command(int narg, char **arg)
     double cpuclock = platform::cputime();
 
     int cpuh,cpum,cpus,wallh,wallm,walls;
-    cpus = fmod(cpuclock,60.0);
+    cpus = (int) fmod(cpuclock, 60.0);
     cpuclock = (cpuclock - cpus) / 60.0;
-    cpum = fmod(cpuclock,60.0);
-    cpuh = (cpuclock - cpum) / 60.0;
-    walls = fmod(wallclock,60.0);
+    cpum = (int) fmod(cpuclock, 60.0);
+    cpuh = (int) ((cpuclock - cpum) / 60.0);
+    walls = (int) fmod(wallclock, 60.0);
     wallclock = (wallclock - walls) / 60.0;
-    wallm = fmod(wallclock,60.0);
-    wallh = (wallclock - wallm) / 60.0;
+    wallm = (int) fmod(wallclock, 60.0);
+    wallh = (int) ((wallclock - wallm) / 60.0);
     utils::print(out,"\nTotal time information (MPI rank 0):\n"
                "  CPU time: {:4d}:{:02d}:{:02d}\n"
                " Wall time: {:4d}:{:02d}:{:02d}\n",
@@ -975,8 +934,9 @@ std::vector<std::string> Info::get_available_styles(const std::string &category)
   return {};
 }
 
+namespace {
 template<typename ValueType>
-static std::vector<std::string> get_style_names(std::map<std::string, ValueType> *styles)
+std::vector<std::string> get_style_names(std::map<std::string, ValueType> *styles)
 {
   std::vector<std::string> names;
 
@@ -991,7 +951,7 @@ static std::vector<std::string> get_style_names(std::map<std::string, ValueType>
 }
 
 template<typename ValueType>
-static bool find_style(const LAMMPS *lmp, std::map<std::string, ValueType> *styles,
+bool find_style(const LAMMPS *lmp, std::map<std::string, ValueType> *styles,
                        const std::string &name, bool suffix_check)
 {
   if (styles->find(name) != styles->end()) {
@@ -1016,7 +976,7 @@ static bool find_style(const LAMMPS *lmp, std::map<std::string, ValueType> *styl
 }
 
 template<typename ValueType>
-static void print_columns(FILE *fp, std::map<std::string, ValueType> *styles)
+void print_columns(FILE *fp, std::map<std::string, ValueType> *styles)
 {
   if (styles->empty()) {
     fprintf(fp, "\nNone");
@@ -1055,6 +1015,7 @@ static void print_columns(FILE *fp, std::map<std::string, ValueType> *styles)
       pos += 80;
     }
   }
+}
 }
 
 bool Info::has_gzip_support() {
@@ -1374,6 +1335,16 @@ std::string Info::get_fmt_info()
 
 /* ---------------------------------------------------------------------- */
 
+std::string Info::get_json_info()
+{
+  return fmt::format("Embedded JSON class version: {}.{}.{}\n",
+                     NLOHMANN_JSON_VERSION_MAJOR,
+                     NLOHMANN_JSON_VERSION_MINOR,
+                     NLOHMANN_JSON_VERSION_PATCH);
+}
+
+/* ---------------------------------------------------------------------- */
+
 void Info::get_memory_info(double *meminfo)
 {
   double bytes = 0;
@@ -1450,4 +1421,81 @@ std::string Info::get_variable_info(int num) {
     if (data[num][j]) text += fmt::format(" {}",data[num][j]);
   text += "\n";
   return text;
+}
+
+/* ---------------------------------------------------------------------- */
+
+std::string Info::get_pair_coeff_status(const LAMMPS *lmp) {
+
+  if (!lmp || !lmp->force || !lmp->force->pair || !lmp->force->pair->allocated)
+    return "Pair style not yet initialized\n";
+
+  const auto ntypes = lmp->atom->ntypes;
+  const auto *const setflag = lmp->force->pair->setflag;
+  std::string output;
+  for (int i=1; i <= ntypes; ++i) {
+    for (int j=i; j <= ntypes; ++j)
+      output += fmt::format("{:6d} {:6d}: is{}set\n", i, j, setflag[i][j] ? " " : " not ");
+  }
+  return output;
+}
+
+/* ---------------------------------------------------------------------- */
+
+std::string Info::get_bond_coeff_status(const LAMMPS *lmp) {
+
+  if (!lmp || !lmp->force || !lmp->force->bond || !lmp->force->bond->allocated)
+    return "Bond style not yet initialized\n";
+
+  const auto ntypes = lmp->atom->nbondtypes;
+  const auto *const setflag = lmp->force->bond->setflag;
+  std::string output;
+  for (int i=1; i <= ntypes; ++i)
+    output += fmt::format("{:6d}: is{}set\n", i, setflag[i] ? " " : " not ");
+  return output;
+}
+
+/* ---------------------------------------------------------------------- */
+
+std::string Info::get_angle_coeff_status(const LAMMPS *lmp) {
+
+  if (!lmp || !lmp->force || !lmp->force->angle || !lmp->force->angle->allocated)
+    return "Angle style not yet initialized\n";
+
+  const auto ntypes = lmp->atom->nangletypes;
+  const auto *const setflag = lmp->force->angle->setflag;
+  std::string output;
+  for (int i=1; i <= ntypes; ++i)
+    output += fmt::format("{:6d}: is{}set\n", i, setflag[i] ? " " : " not ");
+  return output;
+}
+
+/* ---------------------------------------------------------------------- */
+
+std::string Info::get_dihedral_coeff_status(const LAMMPS *lmp) {
+
+  if (!lmp || !lmp->force || !lmp->force->dihedral || !lmp->force->dihedral->allocated)
+    return "Dihedral style not yet initialized\n";
+
+  const auto ntypes = lmp->atom->ndihedraltypes;
+  const auto *const setflag = lmp->force->dihedral->setflag;
+  std::string output;
+  for (int i=1; i <= ntypes; ++i)
+    output += fmt::format("{:6d}: is{}set\n", i, setflag[i] ? " " : " not ");
+  return output;
+}
+
+/* ---------------------------------------------------------------------- */
+
+std::string Info::get_improper_coeff_status(const LAMMPS *lmp) {
+
+  if (!lmp || !lmp->force || !lmp->force->improper || !lmp->force->improper->allocated)
+    return "Improper style not yet initialized\n";
+
+  const auto ntypes = lmp->atom->nimpropertypes;
+  const auto *const setflag = lmp->force->improper->setflag;
+  std::string output;
+  for (int i=1; i <= ntypes; ++i)
+    output += fmt::format("{:6d}: is{}set\n", i, setflag[i] ? " " : " not ");
+  return output;
 }
