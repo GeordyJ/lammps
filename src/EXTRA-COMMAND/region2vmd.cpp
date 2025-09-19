@@ -16,12 +16,10 @@
 
 #include "region2vmd.h"
 
-#include "atom.h"
 #include "comm.h"
 #include "domain.h"
 #include "error.h"
 #include "math_const.h"
-#include "math_extra.h"
 #include "region.h"
 #include "safe_pointers.h"
 
@@ -199,12 +197,12 @@ void Region2VMD::command(int narg, char **arg)
 
     if (thisarg == "color") {
       color = arg[iarg];
-      if (const auto &search = vmdcolors.find(color); search == vmdcolors.end())
+      if (vmdcolors.find(color) == vmdcolors.end())
         error->all(FLERR, iarg, "Color {} is not a known VMD color", color);
 
     } else if (thisarg == "material") {
       material = arg[iarg];
-      if (const auto &search = vmdmaterials.find(material); search == vmdmaterials.end())
+      if (vmdmaterials.find(material) == vmdmaterials.end())
         error->all(FLERR, iarg, "Material {} is not a known VMD material", material);
 
     } else if (thisarg == "command") {

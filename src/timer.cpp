@@ -21,7 +21,6 @@
 #include "tokenizer.h"
 
 #include <array>
-#include <cstring>
 #include <ctime>
 
 using namespace LAMMPS_NS;
@@ -177,7 +176,7 @@ void Timer::print_timeout(FILE *fp)
     // remaining timeout in seconds
     int s = (int) (_timeout - d);
     // remaining 1/100ths of seconds
-    const int hs = 100 * ((_timeout - d) - s);
+    const int hs = static_cast<int>(100.0 * ((_timeout - d) - s));
     // breaking s down into second/minutes/hours
     const int seconds = s % 60;
     s = (s - seconds) / 60;

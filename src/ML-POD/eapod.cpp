@@ -25,6 +25,7 @@
 #include "memory.h"
 #include "tokenizer.h"
 
+#include <algorithm>
 #include <cmath>
 
 // header file. Moved down here to avoid polluting other headers with its defines
@@ -130,7 +131,7 @@ EAPOD::~EAPOD()
   memory->destroy(ind44r);
 }
 
-void EAPOD::read_pod_file(std::string pod_file)
+void EAPOD::read_pod_file(const std::string &pod_file)
 {
   std::string podfilename = pod_file;
   FILE *fppod;
@@ -171,7 +172,7 @@ void EAPOD::read_pod_file(std::string pod_file)
 
     if (words.size() == 0) continue;
 
-    auto keywd = words[0];
+    const auto &keywd = words[0];
 
     if (keywd == "species") {
       nelements = words.size()-1;
@@ -398,7 +399,7 @@ void EAPOD::read_pod_file(std::string pod_file)
   }
 }
 
-void EAPOD::read_model_coeff_file(std::string coeff_file)
+void EAPOD::read_model_coeff_file(const std::string &coeff_file)
 {
   std::string coefffilename = coeff_file;
   FILE *fpcoeff;
@@ -549,7 +550,7 @@ void EAPOD::read_model_coeff_file(std::string coeff_file)
   }
 }
 
-int EAPOD::read_coeff_file(std::string coeff_file)
+int EAPOD::read_coeff_file(const std::string &coeff_file)
 {
   std::string coefffilename = coeff_file;
   FILE *fpcoeff;
@@ -641,7 +642,7 @@ int EAPOD::read_coeff_file(std::string coeff_file)
 }
 
 // funcion to read the projection matrix from file.
-int EAPOD::read_projection_matrix(std::string proj_file)
+int EAPOD::read_projection_matrix(const std::string &proj_file)
 {
   std::string projfilename = proj_file;
   FILE *fpproj;
@@ -732,7 +733,7 @@ int EAPOD::read_projection_matrix(std::string proj_file)
 }
 
 // read Centroids from file
-int EAPOD::read_centroids(std::string centroids_file)
+int EAPOD::read_centroids(const std::string &centroids_file)
 {
   std::string centfilename = centroids_file;
   FILE *fpcent;

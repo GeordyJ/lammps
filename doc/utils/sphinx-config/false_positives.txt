@@ -84,6 +84,7 @@ Alexey
 ali
 aliceblue
 aliphatic
+alkyl
 Allera
 Allinger
 allocatable
@@ -96,6 +97,7 @@ Alonso
 Alperen
 alphak
 alphashrink
+Alvares
 amap
 Amatrix
 AMD
@@ -691,6 +693,7 @@ cuthi
 cutinner
 cutlo
 cutmax
+cutmin
 cutoffA
 cutoffC
 cutsq
@@ -2898,6 +2901,7 @@ parallelepiped
 parallelepipeds
 Parallelizable
 parallelization
+parallelize
 parallelized
 parallelizing
 param
@@ -3207,6 +3211,7 @@ queryargs
 Queteschiner
 quickmin
 quintic
+qval
 qw
 qx
 qy
@@ -3678,6 +3683,7 @@ stdout
 steelblue
 Stegailov
 Steinbach
+steinhardt
 Steinhardt
 Steinhauser
 Stepaniants

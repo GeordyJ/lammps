@@ -83,7 +83,7 @@ using namespace FixConst;
 /* ---------------------------------------------------------------------- */
 
 /* re-usable integer hash table code with static linkage. */
-
+// NOLINTBEGIN
 /** hash table top level data structure */
 typedef struct taginthash_t {
   struct taginthash_node_t **bucket; /* array of hash nodes */
@@ -99,7 +99,7 @@ typedef struct taginthash_node_t {
   tagint key;                            /* key for hash lookup */
   struct taginthash_node_t *next;        /* next node in hash chain */
 } taginthash_node_t;
-
+// NOLINTEND
 #define HASH_FAIL  -1
 #define HASH_LIMIT  0.5
 
@@ -225,7 +225,7 @@ tagint *taginthash_keys(taginthash_t *tptr) {
   tagint *keys;
   taginthash_node_t *node;
 
-  keys = (tagint *)calloc(tptr->entries, sizeof(tagint));
+  keys = (tagint *)calloc(tptr->entries + 1, sizeof(tagint));
 
   for (tagint i=0; i < tptr->size; ++i) {
     for (node=tptr->bucket[i]; node != nullptr; node=node->next) {
@@ -348,6 +348,8 @@ static void id_sort(tagint *idmap, tagint left, tagint right)
 
 #include <climits>
 
+// NOLINTBEGIN
+
 #if (INT_MAX == 2147483647)
 typedef int     int32;
 #else
@@ -455,6 +457,7 @@ struct commdata {
 
 static MPI_Datatype MPI_CommData;
 
+// NOLINTEND
 /***************************************************************
  * create class and parse arguments in LAMMPS script.
  ***************************************************************/
@@ -1799,6 +1802,8 @@ void FixIMD::handle_output_v3() {
 
 /* End of FixIMD class implementation. */
 
+// NOLINTBEGIN
+
 /***************************************************************************/
 
 /* NOTE: the following code is the based on the example implementation
@@ -2148,6 +2153,7 @@ int imd_recv_energies(void *s, IMDEnergies *energies) {
 int imd_recv_fcoords(void *s, int32 n, float *coords) {
   return (imd_readn(s, (char *)coords, 12*n) != 12*n);
 }
+// NOLINTEND
 
 // Local Variables:
 // mode: c++
