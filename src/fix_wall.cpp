@@ -144,7 +144,7 @@ FixWall::FixWall(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg), nwall
         }
         cutoff[nwall] = utils::numeric(FLERR, arg[iarg + 4], false, lmp);
       }
-      if (utils::strmatch(style, "^wall/lj104") && !utils::strmatch(style, "^wall/lj1043")) {
+      if ((utils::strmatch(style, "^wall/lj104") || utils::strmatch(style, "^wall/ljSteele")) && !utils::strmatch(style, "^wall/lj1043")) {
         wantargs += 3;
         if (utils::is_double(arg[iarg + 5]) && utils::is_integer(arg[iarg + 6]) && utils::is_double(arg[iarg + 7])) {
           rho_s[nwall] = utils::numeric(FLERR, arg[iarg + 5], false, lmp);
